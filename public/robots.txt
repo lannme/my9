@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Sitemap: https://my9.shatranj.space/sitemap.xml
+Host: my9.shatranj.space
+
