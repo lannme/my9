@@ -19,38 +19,29 @@ function readEnv(...names: string[]): string | null {
   return null;
 }
 
-function buildDatabaseUrlFromParts(options?: { unpooled?: boolean }): string | null {
-  const host = options?.unpooled ? readEnv("PGHOST_UNPOOLED", "POSTGRES_HOST") : readEnv("PGHOST", "POSTGRES_HOST");
-  const user = readEnv("PGUSER", "POSTGRES_USER");
-  const password = readEnv("PGPASSWORD", "POSTGRES_PASSWORD");
-  const database = readEnv("PGDATABASE", "POSTGRES_DATABASE");
+function buildDatabaseUrlFromNeonParts(): string | null {
+  const host = readEnv("NEON_DATABASE_PGHOST_UNPOOLED", "NEON_DATABASE_PGHOST");
+  const user = readEnv("NEON_DATABASE_PGUSER");
+  const password = readEnv("NEON_DATABASE_PGPASSWORD", "NEON_DATABASE_POSTGRES_PASSWORD");
+  const database = readEnv("NEON_DATABASE_PGDATABASE", "NEON_DATABASE_POSTGRES_DATABASE");
 
   if (!host || !user || !password || !database) {
     return null;
   }
 
   let hostWithPort = host;
-  const port = readEnv("PGPORT");
+  const port = readEnv("NEON_DATABASE_PGPORT");
   if (port && !host.includes(":")) {
     hostWithPort = `${host}:${port}`;
   }
 
-  const sslMode = readEnv("PGSSLMODE") ?? "require";
+  const sslMode = readEnv("NEON_DATABASE_PGSSLMODE") ?? "require";
   return `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(
     password
   )}@${hostWithPort}/${encodeURIComponent(database)}?sslmode=${encodeURIComponent(sslMode)}`;
 }
 
-const DATABASE_URL =
-  readEnv(
-    "POSTGRES_URL_NON_POOLING",
-    "DATABASE_URL_UNPOOLED",
-    "POSTGRES_URL",
-    "DATABASE_URL",
-    "NEON_DATABASE_URL"
-  ) ||
-  buildDatabaseUrlFromParts({ unpooled: true }) ||
-  buildDatabaseUrlFromParts({ unpooled: false });
+const DATABASE_URL = buildDatabaseUrlFromNeonParts();
 const DATABASE_ENABLED = Boolean(DATABASE_URL);
 const MEMORY_FALLBACK_ENABLED =
   readEnv("MY9_ALLOW_MEMORY_FALLBACK") === "1" ||
@@ -60,6 +51,7 @@ type SqlClient = ReturnType<typeof neon>;
 
 let sqlClient: SqlClient | null = null;
 let schemaReadyPromise: Promise<void> | null = null;
+let schemaLastError: Error | null = null;
 
 function getSqlClient(): SqlClient | null {
   if (!DATABASE_ENABLED) {
@@ -96,6 +88,13 @@ function throwStorageError(context: string, cause?: unknown): never {
     throw new Error(`${context}: ${cause.message}`);
   }
   throw new Error(context);
+}
+
+function throwDatabaseNotReady(context: string): never {
+  if (schemaLastError) {
+    throwStorageError(context, schemaLastError);
+  }
+  throwStorageError(`${context}: database is not ready`);
 }
 
 function normalizeStoredShare(input: StoredShareV1): StoredShareV1 {
@@ -229,9 +228,12 @@ async function ensureSchema(): Promise<boolean> {
 
   try {
     await schemaReadyPromise;
+    schemaLastError = null;
     return true;
-  } catch {
+  } catch (error) {
     schemaReadyPromise = null;
+    schemaLastError =
+      error instanceof Error ? error : new Error(typeof error === "string" ? error : "schema init failed");
     return false;
   }
 }
@@ -251,7 +253,7 @@ export async function saveShare(record: StoredShareV1): Promise<void> {
   const sql = getSqlClient();
   if (!sql || !(await ensureSchema())) {
     if (!MEMORY_FALLBACK_ENABLED) {
-      throwStorageError("saveShare failed: database is not ready");
+      throwDatabaseNotReady("saveShare failed");
     }
     getMemoryStore().shares.set(normalizedRecord.shareId, normalizedRecord);
     return;
@@ -297,7 +299,7 @@ export async function getShare(shareId: string): Promise<StoredShareV1 | null> {
   const sql = getSqlClient();
   if (!sql || !(await ensureSchema())) {
     if (!MEMORY_FALLBACK_ENABLED) {
-      throwStorageError("getShare failed: database is not ready");
+      throwDatabaseNotReady("getShare failed");
     }
   } else {
     try {
@@ -329,7 +331,7 @@ export async function touchShare(shareId: string, now = Date.now()): Promise<boo
   const sql = getSqlClient();
   if (!sql || !(await ensureSchema())) {
     if (!MEMORY_FALLBACK_ENABLED) {
-      throwStorageError("touchShare failed: database is not ready");
+      throwDatabaseNotReady("touchShare failed");
     }
   } else {
     try {
@@ -369,7 +371,7 @@ export async function listAllShares(): Promise<StoredShareV1[]> {
   const sql = getSqlClient();
   if (!sql || !(await ensureSchema())) {
     if (!MEMORY_FALLBACK_ENABLED) {
-      throwStorageError("listAllShares failed: database is not ready");
+      throwDatabaseNotReady("listAllShares failed");
     }
   } else {
     try {
@@ -412,7 +414,7 @@ export async function listSharesByPeriod(period: TrendPeriod): Promise<StoredSha
 
   if (!sql || !(await ensureSchema())) {
     if (!MEMORY_FALLBACK_ENABLED) {
-      throwStorageError("listSharesByPeriod failed: database is not ready");
+      throwDatabaseNotReady("listSharesByPeriod failed");
     }
   } else {
     try {
@@ -459,7 +461,7 @@ export async function getTrendsCache(
   const sql = getSqlClient();
   if (!sql || !(await ensureSchema())) {
     if (!MEMORY_FALLBACK_ENABLED) {
-      throwStorageError("getTrendsCache failed: database is not ready");
+      throwDatabaseNotReady("getTrendsCache failed");
     }
   } else {
     try {
@@ -521,7 +523,7 @@ export async function setTrendsCache(
   const sql = getSqlClient();
   if (!sql || !(await ensureSchema())) {
     if (!MEMORY_FALLBACK_ENABLED) {
-      throwStorageError("setTrendsCache failed: database is not ready");
+      throwDatabaseNotReady("setTrendsCache failed");
     }
     return;
   }
