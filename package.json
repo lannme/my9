@@ -9,9 +9,13 @@
     "start": "next start",
     "lint": "next lint",
     "test:e2e": "node node_modules/@playwright/test/cli.js test",
-    "analyze:edge-log": "node scripts/analyze-edge-log.mjs"
+    "analyze:edge-log": "node scripts/analyze-edge-log.mjs",
+    "archive:shares:cold": "node scripts/archive-shares-cold.mjs",
+    "migrate:shares:v1-to-v2": "node scripts/migrate-shares-v1-to-v2.mjs",
+    "verify:shares:v2-migration": "node scripts/verify-shares-v2-migration.mjs"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.928.0",
     "@neondatabase/serverless": "^1.0.2",
     "@radix-ui/react-dialog": "^1.1.6",
     "@radix-ui/react-slot": "^1.1.2",

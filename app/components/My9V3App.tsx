@@ -632,7 +632,7 @@ export default function My9V3App({
 
       const targetKind = parseSubjectKind(json.kind) ?? kind;
       setShareId(json.shareId);
-      pushToast("success", "分享页面已创建");
+      pushToast("success", json.deduped ? "分享页面已创建" : "分享页面已创建");
       const target = `/${targetKind}/s/${json.shareId}`;
       clearNavigationFallback();
       navigationFallbackTargetRef.current = target;

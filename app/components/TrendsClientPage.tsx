@@ -199,9 +199,6 @@ export default function TrendsClientPage({
                 </Button>
               ))}
             </div>
-            <p className="mt-2 text-[11px] leading-5 text-slate-500">
-              本页只展示真实分享聚合结果，样本不足时显示空榜。
-            </p>
           </div>
 
           {loading ? <p className="text-sm text-slate-600">加载中...</p> : null}

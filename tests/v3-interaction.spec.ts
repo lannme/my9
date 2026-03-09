@@ -135,6 +135,7 @@ async function mockV3Apis(page: Page) {
           kind: state.kind,
           shareId: SHARE_ID,
           shareUrl: `http://localhost:3000/${state.kind}/s/${SHARE_ID}`,
+          deduped: false,
         }),
       });
       return;

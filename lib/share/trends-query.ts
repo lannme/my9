@@ -1,4 +1,4 @@
-import { listSharesByPeriod, getTrendsCache, setTrendsCache } from "@/lib/share/storage";
+import { getAggregatedTrendResponse, listSharesByPeriod, getTrendsCache, setTrendsCache } from "@/lib/share/storage";
 import { buildTrendResponse } from "@/lib/share/trends";
 import { TrendPeriod, TrendResponse, TrendView } from "@/lib/share/types";
 import { DEFAULT_SUBJECT_KIND, SubjectKind, parseSubjectKind } from "@/lib/subject-kind";
@@ -41,12 +41,27 @@ export async function resolveTrendResponse(params: {
     return cached;
   }
 
-  const shares = (await listSharesByPeriod(period)).filter((item) => item.kind === kind);
-  const response = buildTrendResponse({
-    period,
-    view,
-    shares,
-  });
+  let response: TrendResponse;
+  try {
+    const aggregated = await getAggregatedTrendResponse({ period, view, kind });
+    if (aggregated && aggregated.sampleCount > 0) {
+      response = aggregated;
+    } else {
+      const shares = (await listSharesByPeriod(period)).filter((item) => item.kind === kind);
+      response = buildTrendResponse({
+        period,
+        view,
+        shares,
+      });
+    }
+  } catch {
+    const shares = (await listSharesByPeriod(period)).filter((item) => item.kind === kind);
+    response = buildTrendResponse({
+      period,
+      view,
+      shares,
+    });
+  }
 
   const normalizedResponse =
     response.sampleCount < 30

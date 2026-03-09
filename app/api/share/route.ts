@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
 import { createShareId, normalizeShareId } from "@/lib/share/id";
 import { saveShare, getShare } from "@/lib/share/storage";
-import { GameTypeId, ShareGame, StoredShareV1 } from "@/lib/share/types";
+import { ShareGame, StoredShareV1 } from "@/lib/share/types";
 import { parseSubjectKind } from "@/lib/subject-kind";
 
 const MAX_CREATOR_LENGTH = 40;
 const MAX_COMMENT_LENGTH = 140;
-const VALID_GAME_TYPES = new Set<GameTypeId>([0, 1, 2, 3, 4, 8, 9, 10, 11]);
 const SHARE_GET_CDN_TTL_SECONDS = 3600;
 const SHARE_GET_STALE_TTL_SECONDS = 86400;
 const SHARE_GET_CACHE_CONTROL_VALUE = `public, max-age=0, s-maxage=${SHARE_GET_CDN_TTL_SECONDS}, stale-while-revalidate=${SHARE_GET_STALE_TTL_SECONDS}`;
@@ -52,17 +51,7 @@ function sanitizeGame(input: unknown): ShareGame | null {
       ? Math.trunc(game.releaseYear)
       : undefined;
 
-  const gameTypeId =
-    typeof game.gameTypeId === "number" && VALID_GAME_TYPES.has(game.gameTypeId as GameTypeId)
-      ? (game.gameTypeId as GameTypeId)
-      : undefined;
-
   const localizedName = sanitizeString(game.localizedName) || undefined;
-  const platforms = Array.isArray(game.platforms)
-    ? game.platforms
-        .map((item: unknown) => sanitizeString(item))
-        .filter((item: string) => Boolean(item))
-    : undefined;
   const genres = Array.isArray(game.genres)
     ? game.genres
         .map((item: unknown) => sanitizeString(item))
@@ -70,31 +59,13 @@ function sanitizeGame(input: unknown): ShareGame | null {
         .slice(0, 5)
     : undefined;
 
-  const rawStoreUrls = toRecord(game.storeUrls);
-  const storeUrls =
-    rawStoreUrls
-      ? Object.fromEntries(
-          Object.entries(rawStoreUrls).flatMap(
-            ([key, value]) => {
-              const cleanKey = sanitizeString(key);
-              const cleanValue = sanitizeString(value);
-              if (!cleanKey || !cleanValue) return [];
-              return [[cleanKey, cleanValue]];
-            }
-          )
-        )
-      : undefined;
-
   return {
     id,
     name,
     localizedName,
     cover,
     releaseYear,
-    gameTypeId,
-    platforms,
     genres,
-    storeUrls,
     comment,
     spoiler,
   };
@@ -147,15 +118,17 @@ export async function POST(request: Request) {
       lastViewedAt: now,
     };
 
-    await saveShare(record);
+    const saveResult = await saveShare(record);
+    const finalShareId = saveResult.shareId;
     const origin = new URL(request.url).origin;
-    const shareUrl = `${origin}/${kind}/s/${shareId}`;
+    const shareUrl = `${origin}/${kind}/s/${finalShareId}`;
 
     return NextResponse.json({
       ok: true,
-      shareId,
+      shareId: finalShareId,
       kind,
       shareUrl,
+      deduped: saveResult.deduped,
     });
   } catch (error) {
     return NextResponse.json(
