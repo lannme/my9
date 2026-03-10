@@ -177,7 +177,7 @@ export function SearchDialog({
                       onPickGame(orderedResults[activeIndex]);
                       return;
                     }
-                    if (trimmedQuery.length >= 2) {
+                    if (normalizeSearchQuery(trimmedQuery).length > 0) {
                       onSubmitSearch();
                     }
                     return;
@@ -205,7 +205,11 @@ export function SearchDialog({
                 </button>
               ) : null}
             </div>
-            <Button type="button" onClick={onSubmitSearch} disabled={loading || query.trim().length < 2}>
+            <Button
+              type="button"
+              onClick={onSubmitSearch}
+              disabled={loading || normalizeSearchQuery(query).length === 0}
+            >
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

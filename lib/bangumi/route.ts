@@ -223,21 +223,6 @@ export async function handleBangumiSearchRequest(
     });
   }
 
-  if (query.length < 2) {
-    const payload = buildBangumiSearchResponse({ query, kind, items: [] });
-    return NextResponse.json(
-      {
-        ...payload,
-        ok: false,
-        error: "至少输入 2 个字符",
-      },
-      {
-        status: 400,
-        headers: NO_STORE_HEADERS,
-      }
-    );
-  }
-
   const rateLimit = checkSearchRateLimit(request, kind);
   if (rateLimit.limited) {
     const payload = buildBangumiSearchResponse({ query, kind, items: [] });

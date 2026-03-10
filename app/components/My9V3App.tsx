@@ -426,8 +426,8 @@ export default function My9V3App({
 
   async function handleSearch() {
     const normalizedQuery = normalizeSearchQuery(searchQuery);
-    if (normalizedQuery.length < 2) {
-      setSearchError("至少输入 2 个字符");
+    if (!normalizedQuery) {
+      setSearchError("请输入关键词");
       return;
     }
 
