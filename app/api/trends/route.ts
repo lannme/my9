@@ -6,15 +6,23 @@ import {
   parseTrendView,
   parseTrendYearPage,
   resolveTrendResponse,
+  TRENDS_STORE_CACHE_TTL_SECONDS,
 } from "@/lib/share/trends-query";
-const TRENDS_CDN_TTL_SECONDS = 3600;
-const TRENDS_CACHE_CONTROL_VALUE = `public, max-age=0, s-maxage=${TRENDS_CDN_TTL_SECONDS}`;
+function resolveCdnTtlSeconds(lastUpdatedAt: number): number {
+  if (!Number.isFinite(lastUpdatedAt) || lastUpdatedAt <= 0) {
+    return 60;
+  }
+  const elapsedSeconds = Math.max(0, Math.floor((Date.now() - lastUpdatedAt) / 1000));
+  const remainingSeconds = TRENDS_STORE_CACHE_TTL_SECONDS - elapsedSeconds;
+  return Math.max(1, Math.min(TRENDS_STORE_CACHE_TTL_SECONDS, remainingSeconds));
+}
 
-function createTrendsCacheHeaders() {
+function createTrendsCacheHeaders(cdnTtlSeconds: number) {
+  const cacheControlValue = `public, max-age=0, s-maxage=${cdnTtlSeconds}`;
   return {
-    "Cache-Control": TRENDS_CACHE_CONTROL_VALUE,
-    "CDN-Cache-Control": TRENDS_CACHE_CONTROL_VALUE,
-    "Vercel-CDN-Cache-Control": TRENDS_CACHE_CONTROL_VALUE,
+    "Cache-Control": cacheControlValue,
+    "CDN-Cache-Control": cacheControlValue,
+    "Vercel-CDN-Cache-Control": cacheControlValue,
   };
 }
 
@@ -32,11 +40,12 @@ export async function GET(request: Request) {
     overallPage,
     yearPage,
   });
+  const cdnTtlSeconds = resolveCdnTtlSeconds(response.lastUpdatedAt);
 
   return NextResponse.json({
     ok: true,
     ...response,
   }, {
-    headers: createTrendsCacheHeaders(),
+    headers: createTrendsCacheHeaders(cdnTtlSeconds),
   });
 }

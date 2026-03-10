@@ -49,8 +49,11 @@ function buildDatabaseUrlFromNeonParts() {
   )}@${hostWithPort}/${encodeURIComponent(database)}?sslmode=${encodeURIComponent(sslMode)}`;
 }
 
-function toUtcDayKey(timestampMs) {
-  const date = new Date(timestampMs);
+const DAY_MS = 24 * 60 * 60 * 1000;
+const BEIJING_TZ_OFFSET_MS = 8 * 60 * 60 * 1000;
+
+function toBeijingDayKey(timestampMs) {
+  const date = new Date(timestampMs + BEIJING_TZ_OFFSET_MS);
   const year = date.getUTCFullYear();
   const month = String(date.getUTCMonth() + 1).padStart(2, "0");
   const day = String(date.getUTCDate()).padStart(2, "0");
@@ -166,7 +169,7 @@ async function main() {
     }
   }
 
-  const cleanupBeforeKey = toUtcDayKey(Date.now() - cleanupTrendDays * 24 * 60 * 60 * 1000);
+  const cleanupBeforeKey = toBeijingDayKey(Date.now() - cleanupTrendDays * DAY_MS);
   const deleted = await sql.query(
     `
     DELETE FROM ${TREND_COUNT_DAY_TABLE}

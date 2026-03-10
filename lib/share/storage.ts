@@ -30,11 +30,13 @@ const SUBJECT_DIM_TABLE = "my9_subject_dim_v1";
 const TREND_COUNT_ALL_TABLE = "my9_trend_subject_all_v2";
 const TREND_COUNT_DAY_TABLE = "my9_trend_subject_day_v2";
 const TRENDS_CACHE_TABLE = "my9_trends_cache_v1";
-const TRENDS_CACHE_VERSION = "v6";
-const TRENDS_SAMPLE_CACHE_VERSION = "v2";
+const TRENDS_CACHE_VERSION = "v7";
+const TRENDS_SAMPLE_CACHE_VERSION = "v3";
 const SAMPLE_SUMMARY_CACHE_VIEW = "sample";
 const OVERALL_TREND_PAGE_SIZE = 20;
 const GROUPED_BUCKET_LIMIT = 20;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const BEIJING_TZ_OFFSET_MS = 8 * 60 * 60 * 1000;
 const SHARES_V2_KIND_CREATED_IDX = `${SHARES_V2_TABLE}_kind_created_idx`;
 const SHARES_V2_TIER_CREATED_IDX = `${SHARES_V2_TABLE}_tier_created_idx`;
 const SHARE_ALIAS_TARGET_IDX = `${SHARE_ALIAS_TABLE}_target_idx`;
@@ -430,8 +432,8 @@ function getMemoryTrendSampleSummaryCache(key: string): TrendSampleSummary | nul
   return item.value;
 }
 
-function toUtcDayKey(timestampMs: number): number {
-  const date = new Date(timestampMs);
+function toBeijingDayKey(timestampMs: number): number {
+  const date = new Date(timestampMs + BEIJING_TZ_OFFSET_MS);
   const year = date.getUTCFullYear();
   const month = String(date.getUTCMonth() + 1).padStart(2, "0");
   const day = String(date.getUTCDate()).padStart(2, "0");
@@ -617,7 +619,7 @@ function buildTrendIncrements(params: {
   payload: CompactSharePayload;
   createdAt: number;
 }): TrendIncrement[] {
-  const dayKey = toUtcDayKey(params.createdAt);
+  const dayKey = toBeijingDayKey(params.createdAt);
   const countBySubject = new Map<string, number>();
 
   for (const slot of params.payload) {
@@ -1045,26 +1047,22 @@ export async function countAllShares(): Promise<number> {
 }
 
 function getPeriodStart(period: TrendPeriod, now = Date.now()): number {
-  const dayMs = 24 * 60 * 60 * 1000;
-  const getUtcDayStart = (timestamp: number) => {
-    const date = new Date(timestamp);
-    date.setUTCHours(0, 0, 0, 0);
-    return date.getTime();
-  };
+  const getBeijingDayStart = (timestamp: number) =>
+    Math.floor((timestamp + BEIJING_TZ_OFFSET_MS) / DAY_MS) * DAY_MS - BEIJING_TZ_OFFSET_MS;
 
   switch (period) {
     case "today":
-      return getUtcDayStart(now);
+      return getBeijingDayStart(now);
     case "24h":
-      return now - dayMs;
+      return now - DAY_MS;
     case "7d":
-      return now - 7 * dayMs;
+      return now - 7 * DAY_MS;
     case "30d":
-      return now - 30 * dayMs;
+      return now - 30 * DAY_MS;
     case "90d":
-      return now - 90 * dayMs;
+      return now - 90 * DAY_MS;
     case "180d":
-      return now - 180 * dayMs;
+      return now - 180 * DAY_MS;
     case "all":
     default:
       return 0;
@@ -1251,7 +1249,7 @@ export async function getAggregatedTrendResponse(params: {
   }
 
   const fromTimestamp = getPeriodStart(period);
-  const fromDayKey = fromTimestamp > 0 ? toUtcDayKey(fromTimestamp) : null;
+  const fromDayKey = fromTimestamp > 0 ? toBeijingDayKey(fromTimestamp) : null;
   const overallOffset = Math.max(0, (overallPage - 1) * OVERALL_TREND_PAGE_SIZE);
   const yearFilterCondition = yearPage === "legacy" ? "d.release_year <= 2009" : "d.release_year >= 2010";
   const genreExcludeCondition =
@@ -2016,7 +2014,7 @@ export async function archiveHotSharesToColdStorage(params?: {
     archived += 1;
   }
 
-  const cleanupBeforeDayKey = toUtcDayKey(Date.now() - cleanupTrendDays * 24 * 60 * 60 * 1000);
+  const cleanupBeforeDayKey = toBeijingDayKey(Date.now() - cleanupTrendDays * DAY_MS);
   const cleanedRows = (await sql.query(
     `
     DELETE FROM ${TREND_COUNT_DAY_TABLE}

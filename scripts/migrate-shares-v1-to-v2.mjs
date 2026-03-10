@@ -88,8 +88,10 @@ function normalizeSubjectId(value, fallbackName) {
   return `name:${fallbackName.trim().toLowerCase() || "unknown"}`;
 }
 
-function toUtcDayKey(timestampMs) {
-  const date = new Date(timestampMs);
+const BEIJING_TZ_OFFSET_MS = 8 * 60 * 60 * 1000;
+
+function toBeijingDayKey(timestampMs) {
+  const date = new Date(timestampMs + BEIJING_TZ_OFFSET_MS);
   const year = date.getUTCFullYear();
   const month = String(date.getUTCMonth() + 1).padStart(2, "0");
   const day = String(date.getUTCDate()).padStart(2, "0");
@@ -154,7 +156,7 @@ function createContentHash(kind, creatorName, payload) {
 }
 
 function buildIncrements(payload, createdAt) {
-  const dayKey = toUtcDayKey(createdAt);
+  const dayKey = toBeijingDayKey(createdAt);
   const countBySubject = new Map();
 
   for (const slot of payload) {

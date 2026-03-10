@@ -19,7 +19,7 @@ export const DEFAULT_TREND_OVERALL_PAGE = 1;
 export const DEFAULT_TREND_YEAR_PAGE: TrendYearPage = "recent";
 const MAX_TREND_OVERALL_PAGE = 5;
 
-const TRENDS_STORE_CACHE_TTL_SECONDS = 3600;
+export const TRENDS_STORE_CACHE_TTL_SECONDS = 3600;
 
 function applySampleSummary(
   response: TrendResponse,
