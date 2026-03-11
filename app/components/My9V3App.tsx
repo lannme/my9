@@ -390,6 +390,12 @@ export default function My9V3App({
     return true;
   }
 
+  function handleReorder(newGames: Array<ShareGame | null>) {
+    makeUndoSnapshot();
+    setGames(newGames);
+    setSpoilerExpandedSet(new Set());
+  }
+
   function updateSlot(index: number, game: ShareGame | null) {
     makeUndoSnapshot();
     setGames((prev) => {
@@ -766,6 +772,7 @@ export default function My9V3App({
                 updateSlot(index, null);
               }}
               onOpenComment={openComment}
+              onReorder={isReadonly ? undefined : handleReorder}
             />
           </div>
         )}
