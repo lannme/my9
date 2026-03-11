@@ -17,6 +17,10 @@ const donationAcknowledgements: Array<{
   amount: string;
   message: string;
 }> = [
+  { date: "2026-03-11", name: "鸽", amount: "1", message: "" },
+  { date: "2026-03-11", name: "NW.哈托客", amount: "20", message: "回想作品时，与之相关的点滴就接连浮现在脑海中，令人怀念……" },
+  { date: "2026-03-11", name: "晚漪", amount: "10", message: "助力！" },
+  { date: "2026-03-11", name: "🍤FishFry酥脆版", amount: "1", message: "一下子推给了好多朋友玩 感谢你呀" },
   { date: "2026-03-11", name: "鞋子", amount: "5", message: "谢谢你" },
   { date: "2026-03-11", name: "BK", amount: "1", message: "" },
   { date: "2026-03-11", name: "匿名", amount: "5", message: "" },
