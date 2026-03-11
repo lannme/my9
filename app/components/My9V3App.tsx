@@ -714,6 +714,7 @@ export default function My9V3App({
             大家的构成
             <span className="text-red-500">(New!)</span>
           </button>
+          <p className="text-sm text-yellow-500">3月11日16时56分开始的服务器崩溃已修复！如果途中遭遇炸服可重新尝试生成。</p>
         </header>
 
         {toast ? (
