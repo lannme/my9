@@ -12,6 +12,7 @@
 - Optional: `MY9_ARCHIVE_OLDER_THAN_DAYS` (default `30`)
 - Optional: `MY9_ARCHIVE_BATCH_SIZE` (default `500`)
 - Optional: `MY9_ARCHIVE_CLEANUP_TREND_DAYS` (default `190`)
+- Optional: `MY9_TRENDS_24H_SOURCE=day|hour` (default `day`, switch to `hour` after hour-window rebuild)
 
 ## Migration
 
@@ -42,6 +43,7 @@ Current trend tables are:
 
 - `my9_trend_subject_all_v2`
 - `my9_trend_subject_day_v2`
+- `my9_trend_subject_hour_v1` (24h read source when enabled)
 
 They only store `subject_id + count` (no `kind/view/bucket`) to reduce write amplification and table size.
 
@@ -54,6 +56,26 @@ node scripts/rebuild-trends-subject-v2.mjs
 Optional flag:
 
 - `node scripts/rebuild-trends-subject-v2.mjs --reset` (truncate new trend tables before rebuild)
+
+## Initialize 24h hour window table
+
+Before switching 24h query source to hour table:
+
+```bash
+node scripts/rebuild-trend-hour-window.mjs
+node scripts/rebuild-trend-hour-window.mjs
+```
+
+The script rebuilds `my9_trend_subject_hour_v1` by range-replacement for Beijing time window:
+
+- from yesterday `00:00`
+- to now
+
+After initialization is done, set:
+
+```bash
+MY9_TRENDS_24H_SOURCE=hour
+```
 
 ## DB usage monitor
 
@@ -69,7 +91,7 @@ Useful flags:
 - `node scripts/monitor-db-usage.mjs --fail-on=warn` or `--fail-on=critical`
 - `node scripts/monitor-db-usage.mjs --exact-counts` (slower, full table count)
 
-## Cold archive + day-count cleanup
+## Cold archive + trend cleanup
 
 ```bash
 node scripts/archive-shares-cold.mjs
@@ -85,7 +107,7 @@ Useful flags:
 
 - Cron route: `/api/cron/archive`
 - Config file: `vercel.json`
-- Current schedule: `0 3 * * *` (UTC, once per day)
+- Current schedule: `5 16 * * *` (UTC, Beijing `00:05`, once per day)
 - Route default behavior: archive shares older than `30` days
 
 Notes from Vercel docs for Hobby:

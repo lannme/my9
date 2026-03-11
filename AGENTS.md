@@ -27,7 +27,8 @@
 - `npm run test:e2e`：运行 Playwright E2E。
 - `node scripts/migrate-shares-v1-to-v2.mjs`：将 `my9_shares_v1` 迁移到 v2 存储模型（支持 checkpoint）。
 - `node scripts/verify-shares-v2-migration.mjs`：校验迁移覆盖率（`missing_count`/`orphan_alias_count`）。
-- `node scripts/archive-shares-cold.mjs`：归档 30 天前热数据到 R2，并清理过旧日粒度趋势计数。
+- `node scripts/rebuild-trend-hour-window.mjs`：用现有分享数据重建“昨天 00:00（北京时间）到当前”的小时粒度趋势窗口（建议连续执行两次）。
+- `node scripts/archive-shares-cold.mjs`：归档 30 天前热数据到 R2，并清理过旧日/小时粒度趋势计数。
 
 说明：
 - 仓库以 `npm` + `package-lock.json` 为准，避免切换包管理器引发锁文件噪音。
@@ -64,6 +65,7 @@
   - 可选：`NEXT_PUBLIC_ENABLE_VERCEL_SPEED_INSIGHTS=1`（默认关闭，避免额外请求）
   - 生产环境默认禁用内存 fallback（数据库异常会直接报错）；可用 `MY9_ALLOW_MEMORY_FALLBACK=1` 临时放开
   - 可选：`MY9_ENABLE_V1_FALLBACK=0`（默认开启 v1 读取兜底；迁移稳定后再关闭）
+  - 可选：`MY9_TRENDS_24H_SOURCE=day|hour`（默认 `day`；小时窗口初始化完成后再切 `hour`）
   - `R2_ENDPOINT`、`R2_BUCKET`、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS_KEY`
   - 可选：`R2_REGION=auto`
   - `CRON_SECRET`（生产环境建议必配，用于保护 `/api/cron/archive`）
@@ -76,7 +78,7 @@
 ## 分享存储 v2 运维
 - 迁移脚本默认读取 `my9_shares_v1`，并写入 `my9_share_registry_v2` / `my9_share_alias_v1` / `my9_subject_dim_v1` / `my9_trend_subject_*`。
 - 迁移完成后先执行 `node scripts/verify-shares-v2-migration.mjs`；仅当 `missing_count=0` 且 `orphan_alias_count=0` 才允许考虑关闭 v1 兜底。
-- 日常归档通过 `app/api/cron/archive` 触发，调度配置在 `vercel.json`（当前每天一次，Hobby 层级可用）。
+- 日常归档通过 `app/api/cron/archive` 触发，调度配置在 `vercel.json`（当前 `5 16 * * *`，即北京时间 `00:05`，每天一次）。
 - 生产切换顺序：`v2 优先 + v1 兜底` -> 全量迁移与校验 -> 关闭兜底 -> 稳定观察后再删除 v1 表。
 
 ## 提交与 PR 建议

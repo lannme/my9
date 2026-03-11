@@ -2,12 +2,10 @@ import {
   getAggregatedTrendResponse,
   getTrendSampleSummary,
   getTrendSampleSummaryCache,
-  listSharesByPeriod,
-  setTrendSampleSummaryCache,
   getTrendsCache,
+  setTrendSampleSummaryCache,
   setTrendsCache,
 } from "@/lib/share/storage";
-import { buildTrendResponse } from "@/lib/share/trends";
 import { TrendPeriod, TrendResponse, TrendView, TrendYearPage } from "@/lib/share/types";
 import { DEFAULT_SUBJECT_KIND, SubjectKind, parseSubjectKind } from "@/lib/subject-kind";
 
@@ -22,10 +20,20 @@ const MAX_TREND_OVERALL_PAGE = 5;
 
 export const TRENDS_STORE_CACHE_TTL_SECONDS = 3600;
 
-function applySampleSummary(
-  response: TrendResponse,
-  summary: { sampleCount: number; range: { from: number | null; to: number | null } } | null
-): TrendResponse {
+type TrendSampleSummary = {
+  sampleCount: number;
+  range: { from: number | null; to: number | null };
+};
+
+type ResolveTrendParams = {
+  period: TrendPeriod;
+  view: TrendView;
+  kind: SubjectKind;
+  overallPage: number;
+  yearPage: TrendYearPage;
+};
+
+function applySampleSummary(response: TrendResponse, summary: TrendSampleSummary | null): TrendResponse {
   if (!summary) {
     return response;
   }
@@ -36,14 +44,113 @@ function applySampleSummary(
   };
 }
 
-function toSampleSummary(response: TrendResponse): {
-  sampleCount: number;
-  range: { from: number | null; to: number | null };
-} {
+function toSampleSummary(response: TrendResponse): TrendSampleSummary {
   return {
     sampleCount: response.sampleCount,
     range: response.range,
   };
+}
+
+function suppressSmallSamples(response: TrendResponse): TrendResponse {
+  if (response.sampleCount < 30) {
+    return {
+      ...response,
+      items: [],
+    };
+  }
+  return response;
+}
+
+function createEmptyTrendResponse(params: ResolveTrendParams, summary: TrendSampleSummary | null): TrendResponse {
+  return {
+    period: params.period,
+    view: params.view,
+    sampleCount: summary?.sampleCount ?? 0,
+    range: summary?.range ?? { from: null, to: null },
+    lastUpdatedAt: Date.now(),
+    items: [],
+  };
+}
+
+function resolveInflightKey(params: ResolveTrendParams): string {
+  return `${params.period}:${params.view}:${params.kind}:op${params.overallPage}:yp${params.yearPage}`;
+}
+
+function getInflightMap(): Map<string, Promise<TrendResponse>> {
+  const g = globalThis as typeof globalThis & {
+    __MY9_TRENDS_INFLIGHT__?: Map<string, Promise<TrendResponse>>;
+  };
+
+  if (!g.__MY9_TRENDS_INFLIGHT__) {
+    g.__MY9_TRENDS_INFLIGHT__ = new Map<string, Promise<TrendResponse>>();
+  }
+  return g.__MY9_TRENDS_INFLIGHT__;
+}
+
+async function safeGetTrendSampleSummaryCache(
+  period: TrendPeriod,
+  kind: SubjectKind,
+  allowExpired = false
+): Promise<TrendSampleSummary | null> {
+  try {
+    return await getTrendSampleSummaryCache(period, kind, { allowExpired });
+  } catch {
+    return null;
+  }
+}
+
+async function safeGetTrendsCache(
+  params: ResolveTrendParams,
+  allowExpired = false
+): Promise<TrendResponse | null> {
+  try {
+    return await getTrendsCache(
+      params.period,
+      params.view,
+      params.kind,
+      params.overallPage,
+      params.yearPage,
+      { allowExpired }
+    );
+  } catch {
+    return null;
+  }
+}
+
+async function safeSetTrendSampleSummaryCache(
+  period: TrendPeriod,
+  kind: SubjectKind,
+  value: TrendSampleSummary
+): Promise<void> {
+  try {
+    await setTrendSampleSummaryCache(period, kind, value, TRENDS_STORE_CACHE_TTL_SECONDS);
+  } catch {
+    // Intentionally swallow cache write errors.
+  }
+}
+
+async function safeSetTrendsCache(params: ResolveTrendParams, value: TrendResponse): Promise<void> {
+  try {
+    await setTrendsCache(
+      params.period,
+      params.view,
+      params.kind,
+      params.overallPage,
+      params.yearPage,
+      value,
+      TRENDS_STORE_CACHE_TTL_SECONDS
+    );
+  } catch {
+    // Intentionally swallow cache write errors.
+  }
+}
+
+async function safeGetTrendSampleSummary(period: TrendPeriod, kind: SubjectKind): Promise<TrendSampleSummary | null> {
+  try {
+    return await getTrendSampleSummary(period, kind);
+  } catch {
+    return null;
+  }
 }
 
 export function parseTrendPeriod(value: string | null | undefined): TrendPeriod {
@@ -79,127 +186,84 @@ export function parseTrendYearPage(value: string | null | undefined): TrendYearP
   return value === "legacy" ? "legacy" : DEFAULT_TREND_YEAR_PAGE;
 }
 
-function applyFallbackPageFilter(
-  response: TrendResponse,
-  params: { view: TrendView; overallPage: number; yearPage: TrendYearPage }
-): TrendResponse {
-  const { view, overallPage, yearPage } = params;
-  if (view === "overall") {
-    const pageSize = 20;
-    const offset = Math.max(0, (overallPage - 1) * pageSize);
-    return {
-      ...response,
-      items: response.items.slice(offset, offset + pageSize),
-    };
-  }
+async function resolveTrendResponseInternal(params: ResolveTrendParams): Promise<TrendResponse> {
+  const { period, kind } = params;
+  let sampleSummary = await safeGetTrendSampleSummaryCache(period, kind, false);
 
-  if (view === "year") {
-    const filtered = response.items.filter((bucket) => {
-      const year = Number(bucket.key);
-      if (!Number.isFinite(year)) {
-        return false;
-      }
-      return yearPage === "recent" ? year >= 2010 : year <= 2009;
-    });
-    return {
-      ...response,
-      items: filtered,
-    };
-  }
-
-  return response;
-}
-
-export async function resolveTrendResponse(params: {
-  period: TrendPeriod;
-  view: TrendView;
-  kind: SubjectKind;
-  overallPage: number;
-  yearPage: TrendYearPage;
-}): Promise<TrendResponse> {
-  const { period, view, kind, overallPage, yearPage } = params;
-  let sampleSummary = await getTrendSampleSummaryCache(period, kind);
-
-  const cached = await getTrendsCache(period, view, kind, overallPage, yearPage);
+  const cached = await safeGetTrendsCache(params, false);
   if (cached) {
     const mergedSampleCount = sampleSummary?.sampleCount ?? cached.sampleCount;
-    const cachedLooksStaleSuppressed =
-      cached.items.length === 0 && mergedSampleCount >= 30;
+    const cachedLooksStaleSuppressed = cached.items.length === 0 && mergedSampleCount >= 30;
 
     if (!cachedLooksStaleSuppressed) {
       if (!sampleSummary) {
         sampleSummary = toSampleSummary(cached);
-        await setTrendSampleSummaryCache(period, kind, sampleSummary, TRENDS_STORE_CACHE_TTL_SECONDS);
+        await safeSetTrendSampleSummaryCache(period, kind, sampleSummary);
       }
-      const refreshed = applySampleSummary(cached, sampleSummary);
-      return refreshed.sampleCount < 30
-        ? {
-            ...refreshed,
-            items: [],
-          }
-        : refreshed;
+      return suppressSmallSamples(applySampleSummary(cached, sampleSummary));
     }
 
     if (!sampleSummary) {
-      sampleSummary = await getTrendSampleSummary(period, kind);
+      sampleSummary = await safeGetTrendSampleSummary(period, kind);
     }
     if (!sampleSummary) {
       sampleSummary = toSampleSummary(cached);
-      await setTrendSampleSummaryCache(period, kind, sampleSummary, TRENDS_STORE_CACHE_TTL_SECONDS);
+      await safeSetTrendSampleSummaryCache(period, kind, sampleSummary);
     }
   }
 
-  let response: TrendResponse;
   try {
     const aggregated = await getAggregatedTrendResponse({
-      period,
-      view,
-      kind,
-      overallPage,
-      yearPage,
+      period: params.period,
+      view: params.view,
+      kind: params.kind,
+      overallPage: params.overallPage,
+      yearPage: params.yearPage,
     });
-    if (aggregated && aggregated.sampleCount > 0) {
-      response = aggregated;
-    } else {
-      const shares = (await listSharesByPeriod(period)).filter((item) => item.kind === kind);
-      response = applyFallbackPageFilter(
-        buildTrendResponse({
-          period,
-          view,
-          kind,
-          shares,
-        }),
-        { view, overallPage, yearPage }
-      );
+
+    if (aggregated) {
+      if (!sampleSummary) {
+        sampleSummary = toSampleSummary(aggregated);
+        await safeSetTrendSampleSummaryCache(period, kind, sampleSummary);
+      }
+
+      const normalized = suppressSmallSamples(applySampleSummary(aggregated, sampleSummary));
+      await safeSetTrendsCache(params, normalized);
+      return normalized;
     }
   } catch {
-    const shares = (await listSharesByPeriod(period)).filter((item) => item.kind === kind);
-    response = applyFallbackPageFilter(
-      buildTrendResponse({
-        period,
-        view,
-        kind,
-        shares,
-      }),
-      { view, overallPage, yearPage }
-    );
+    // degrade to stale cache below
+  }
+
+  const staleCached = await safeGetTrendsCache(params, true);
+  if (staleCached) {
+    if (!sampleSummary) {
+      sampleSummary = (await safeGetTrendSampleSummaryCache(period, kind, true)) ?? toSampleSummary(staleCached);
+    }
+    return suppressSmallSamples(applySampleSummary(staleCached, sampleSummary));
   }
 
   if (!sampleSummary) {
-    sampleSummary = toSampleSummary(response);
-    await setTrendSampleSummaryCache(period, kind, sampleSummary, TRENDS_STORE_CACHE_TTL_SECONDS);
+    sampleSummary = (await safeGetTrendSampleSummary(period, kind)) ?? {
+      sampleCount: 0,
+      range: { from: null, to: null },
+    };
   }
 
-  response = applySampleSummary(response, sampleSummary);
+  return suppressSmallSamples(createEmptyTrendResponse(params, sampleSummary));
+}
 
-  const normalizedResponse =
-    response.sampleCount < 30
-      ? {
-          ...response,
-          items: [],
-        }
-      : response;
+export async function resolveTrendResponse(params: ResolveTrendParams): Promise<TrendResponse> {
+  const key = resolveInflightKey(params);
+  const inflight = getInflightMap();
+  const existing = inflight.get(key);
+  if (existing) {
+    return existing;
+  }
 
-  await setTrendsCache(period, view, kind, overallPage, yearPage, normalizedResponse, TRENDS_STORE_CACHE_TTL_SECONDS);
-  return normalizedResponse;
+  const pending = resolveTrendResponseInternal(params).finally(() => {
+    inflight.delete(key);
+  });
+  inflight.set(key, pending);
+  return pending;
 }
