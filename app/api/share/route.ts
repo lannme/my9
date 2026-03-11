@@ -167,7 +167,10 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     ok: true,
-    ...share,
+    shareId: share.shareId,
+    kind: share.kind,
+    creatorName: share.creatorName,
+    games: share.games,
   }, {
     headers: createShareGetCacheHeaders(),
   });

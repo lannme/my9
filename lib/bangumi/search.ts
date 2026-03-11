@@ -102,6 +102,17 @@ function createSuggestions(kind: SubjectKind): string[] {
   ];
 }
 
+function toSearchResponseItem(item: ShareSubject): ShareSubject {
+  return {
+    id: item.id,
+    name: item.name,
+    localizedName: item.localizedName,
+    cover: item.cover,
+    releaseYear: item.releaseYear,
+    genres: Array.isArray(item.genres) ? item.genres.slice(0, 3) : undefined,
+  };
+}
+
 export function buildBangumiSearchResponse(
   params: {
     query: string;
@@ -111,6 +122,7 @@ export function buildBangumiSearchResponse(
 ): SubjectSearchResponse {
   const { query, kind, items } = params;
   const visibleItems = filterBlockedSubjects(items);
+  const responseItems = visibleItems.map(toSearchResponseItem);
   const ranked = visibleItems
     .map((item) => ({
       id: item.id,
@@ -128,9 +140,9 @@ export function buildBangumiSearchResponse(
     ok: true,
     source: "bangumi",
     kind,
-    items: visibleItems,
+    items: responseItems,
     topPickIds,
-    suggestions: createSuggestions(kind),
+    suggestions: responseItems.length === 0 ? createSuggestions(kind) : [],
     noResultQuery: visibleItems.length === 0 && query.trim() ? query : null,
   };
 }

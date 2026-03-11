@@ -619,6 +619,20 @@ export default function My9V3App({
       if (!confirmed) return;
     }
 
+    const sharePayloadGames = games.map((game) => {
+      if (!game) return null;
+      return {
+        id: game.id,
+        name: game.name,
+        localizedName: game.localizedName,
+        cover: game.cover,
+        releaseYear: game.releaseYear,
+        genres: game.genres,
+        comment: game.comment,
+        spoiler: game.spoiler,
+      };
+    });
+
     setSavingShare(true);
     try {
       const response = await fetch("/api/share", {
@@ -627,7 +641,7 @@ export default function My9V3App({
         body: JSON.stringify({
           kind,
           creatorName: creatorName.trim() || null,
-          games,
+          games: sharePayloadGames,
         }),
       });
 
