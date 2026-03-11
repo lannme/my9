@@ -97,6 +97,34 @@ function extractYear(raw?: string | null): number | undefined {
   return year;
 }
 
+// 通用 TMDB Search 请求，返回原始 results 数组
+async function fetchTmdbSearch<T>(
+  endpoint: string,
+  query: string,
+  language: string
+): Promise<T[]> {
+  const url = new URL(`${TMDB_API_BASE_URL}/${endpoint}`);
+  url.searchParams.set("query", query);
+  url.searchParams.set("language", language);
+  url.searchParams.set("page", "1");
+
+  const response = await fetch(url.toString(), {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${TMDB_API_READ_ACCESS_TOKEN}`,
+    },
+    next: { revalidate: 0 },
+  });
+
+  if (!response.ok) {
+    throw new Error(`TMDB search failed: ${response.status}`);
+  }
+
+  const json = (await response.json()) as { results?: T[] };
+  return Array.isArray(json?.results) ? json.results : [];
+}
+
 function normalizeText(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, "");
 }
@@ -217,89 +245,75 @@ export function buildTmdbSearchResponse(params: {
   };
 }
 
-// 调用 TMDB Search TV API
+// 调用 TMDB Search TV API，使用英文海报 + 中文文字
 export async function searchTmdbTv(params: {
   query: string;
   kind: SubjectKind;
 }): Promise<ShareSubject[]> {
   const { query } = params;
   const q = query.trim();
-  if (!q) {
-    return [];
-  }
+  if (!q) return [];
 
   if (!TMDB_API_READ_ACCESS_TOKEN) {
     throw new Error("TMDB_API_READ_ACCESS_TOKEN 未配置");
   }
 
-  const searchUrl = new URL(`${TMDB_API_BASE_URL}/search/tv`);
-  searchUrl.searchParams.set("query", q);
-  searchUrl.searchParams.set("language", "zh-CN");
-  searchUrl.searchParams.set("page", "1");
+  // 并行拉取：zh-CN 负责文字，en-US 负责海报
+  const [zhResults, enResults] = await Promise.all([
+    fetchTmdbSearch<TmdbTvResult>("search/tv", q, "zh-CN"),
+    fetchTmdbSearch<TmdbTvResult>("search/tv", q, "en-US"),
+  ]);
 
-  const response = await fetch(searchUrl.toString(), {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      Authorization: `Bearer ${TMDB_API_READ_ACCESS_TOKEN}`,
-    },
-    next: { revalidate: 0 },
-  });
-
-  if (!response.ok) {
-    throw new Error(`TMDB search failed: ${response.status}`);
+  // 建立 en-US 海报索引 id -> poster_path
+  const enPosterMap = new Map<number, string | null>();
+  for (const r of enResults) {
+    enPosterMap.set(r.id, r.poster_path ?? null);
   }
 
-  const json = (await response.json()) as TmdbSearchTvResponse;
-  const results = Array.isArray(json?.results) ? json.results : [];
-
-  // 过滤掉动画，转换为 ShareSubject
-  const items = results
+  const items = zhResults
     .filter((result) => !isAnimationTv(result))
-    .map(toShareSubject)
+    .map((result) => {
+      const enPoster = enPosterMap.get(result.id);
+      // 优先使用英文版海报；若英文版也没有则降级使用中文版
+      const posterPath = enPoster !== undefined ? enPoster : result.poster_path;
+      return toShareSubject({ ...result, poster_path: posterPath ?? null });
+    })
     .slice(0, 20);
 
   return items;
 }
 
-// 调用 TMDB Search Movie API
+// 调用 TMDB Search Movie API，使用英文海报 + 中文文字
 export async function searchTmdbMovie(params: {
   query: string;
   kind: SubjectKind;
 }): Promise<ShareSubject[]> {
   const { query } = params;
   const q = query.trim();
-  if (!q) {
-    return [];
-  }
+  if (!q) return [];
 
   if (!TMDB_API_READ_ACCESS_TOKEN) {
     throw new Error("TMDB_API_READ_ACCESS_TOKEN 未配置");
   }
 
-  const searchUrl = new URL(`${TMDB_API_BASE_URL}/search/movie`);
-  searchUrl.searchParams.set("query", q);
-  searchUrl.searchParams.set("language", "zh-CN");
-  searchUrl.searchParams.set("page", "1");
+  // 并行拉取：zh-CN 负责文字，en-US 负责海报
+  const [zhResults, enResults] = await Promise.all([
+    fetchTmdbSearch<TmdbMovieResult>("search/movie", q, "zh-CN"),
+    fetchTmdbSearch<TmdbMovieResult>("search/movie", q, "en-US"),
+  ]);
 
-  const response = await fetch(searchUrl.toString(), {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      Authorization: `Bearer ${TMDB_API_READ_ACCESS_TOKEN}`,
-    },
-    next: { revalidate: 0 },
-  });
-
-  if (!response.ok) {
-    throw new Error(`TMDB search failed: ${response.status}`);
+  // 建立 en-US 海报索引 id -> poster_path
+  const enPosterMap = new Map<number, string | null>();
+  for (const r of enResults) {
+    enPosterMap.set(r.id, r.poster_path ?? null);
   }
 
-  const json = (await response.json()) as TmdbSearchMovieResponse;
-  const results = Array.isArray(json?.results) ? json.results : [];
-
-  const items = results
-    .map(toShareMovieSubject)
+  const items = zhResults
+    .map((result) => {
+      const enPoster = enPosterMap.get(result.id);
+      const posterPath = enPoster !== undefined ? enPoster : result.poster_path;
+      return toShareMovieSubject({ ...result, poster_path: posterPath ?? null });
+    })
     .slice(0, 20);
 
   return items;
