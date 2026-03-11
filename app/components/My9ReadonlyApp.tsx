@@ -194,9 +194,6 @@ export default function My9ReadonlyApp({
               games={games}
               subjectLabel={kindMeta.label}
               readOnly
-              onSelectSlot={() => undefined}
-              onRemoveSlot={() => undefined}
-              onOpenComment={() => undefined}
             />
           </div>
         )}
