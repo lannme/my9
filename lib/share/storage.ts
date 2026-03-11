@@ -36,7 +36,9 @@ const SAMPLE_SUMMARY_CACHE_VIEW = "sample";
 const OVERALL_TREND_PAGE_SIZE = 20;
 const GROUPED_BUCKET_LIMIT = 20;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
 const BEIJING_TZ_OFFSET_MS = 8 * 60 * 60 * 1000;
+const TREND_CACHE_COMPAT_TTL_MS = 60 * 60 * 1000;
 const SHARES_V2_KIND_CREATED_IDX = `${SHARES_V2_TABLE}_kind_created_idx`;
 const SHARES_V2_TIER_CREATED_IDX = `${SHARES_V2_TABLE}_tier_created_idx`;
 const SHARE_ALIAS_TARGET_IDX = `${SHARE_ALIAS_TABLE}_target_idx`;
@@ -102,8 +104,8 @@ function getSqlClient(): SqlClient | null {
 type MemoryStore = {
   shares: Map<string, StoredShareV1>;
   hashToShareId: Map<string, string>;
-  trendCache: Map<string, { value: TrendResponse; expiresAt: number }>;
-  trendSampleCache: Map<string, { value: TrendSampleSummary; expiresAt: number }>;
+  trendCache: Map<string, { value: TrendResponse; expiresAt: number; updatedAt?: number }>;
+  trendSampleCache: Map<string, { value: TrendSampleSummary; expiresAt: number; updatedAt?: number }>;
 };
 
 type ShareV1Row = {
@@ -161,6 +163,7 @@ type ShareCountRow = {
 type TrendCacheRow = {
   payload: unknown;
   expires_at: number | string;
+  updated_at?: number | string | null;
 };
 
 type TrendSampleSummary = {
@@ -278,12 +281,15 @@ function getMemoryStore(): MemoryStore {
     g.__MY9_SHARE_MEMORY__ = {
       shares: new Map<string, StoredShareV1>(),
       hashToShareId: new Map<string, string>(),
-      trendCache: new Map<string, { value: TrendResponse; expiresAt: number }>(),
-      trendSampleCache: new Map<string, { value: TrendSampleSummary; expiresAt: number }>(),
+      trendCache: new Map<string, { value: TrendResponse; expiresAt: number; updatedAt?: number }>(),
+      trendSampleCache: new Map<string, { value: TrendSampleSummary; expiresAt: number; updatedAt?: number }>(),
     };
   }
   if (!g.__MY9_SHARE_MEMORY__.trendSampleCache) {
-    g.__MY9_SHARE_MEMORY__.trendSampleCache = new Map<string, { value: TrendSampleSummary; expiresAt: number }>();
+    g.__MY9_SHARE_MEMORY__.trendSampleCache = new Map<
+      string,
+      { value: TrendSampleSummary; expiresAt: number; updatedAt?: number }
+    >();
   }
   return g.__MY9_SHARE_MEMORY__;
 }
@@ -412,22 +418,56 @@ async function ensureSchema(): Promise<boolean> {
   }
 }
 
+function toBeijingHourBucket(timestampMs: number): number {
+  return Math.floor((timestampMs + BEIJING_TZ_OFFSET_MS) / HOUR_MS);
+}
+
+function resolveTrendCacheUpdatedAt(expiresAt: number, updatedAt: unknown): number {
+  if (typeof updatedAt === "number" && Number.isFinite(updatedAt) && updatedAt > 0) {
+    return Math.trunc(updatedAt);
+  }
+  const inferred = expiresAt - TREND_CACHE_COMPAT_TTL_MS;
+  if (Number.isFinite(inferred) && inferred > 0) {
+    return Math.trunc(inferred);
+  }
+  return Date.now();
+}
+
+function isTrendCacheExpired(expiresAt: number, updatedAt: number, nowMs: number): boolean {
+  if (nowMs > expiresAt) {
+    return true;
+  }
+  return toBeijingHourBucket(nowMs) !== toBeijingHourBucket(updatedAt);
+}
+
 function getMemoryTrendCache(key: string): TrendResponse | null {
-  const item = getMemoryStore().trendCache.get(key);
+  const store = getMemoryStore();
+  const item = store.trendCache.get(key);
   if (!item) return null;
-  if (Date.now() > item.expiresAt) {
-    getMemoryStore().trendCache.delete(key);
+  const nowMs = Date.now();
+  const updatedAt = resolveTrendCacheUpdatedAt(item.expiresAt, item.updatedAt);
+  if (isTrendCacheExpired(item.expiresAt, updatedAt, nowMs)) {
+    store.trendCache.delete(key);
     return null;
+  }
+  if (updatedAt !== item.updatedAt) {
+    store.trendCache.set(key, { ...item, updatedAt });
   }
   return item.value;
 }
 
 function getMemoryTrendSampleSummaryCache(key: string): TrendSampleSummary | null {
-  const item = getMemoryStore().trendSampleCache.get(key);
+  const store = getMemoryStore();
+  const item = store.trendSampleCache.get(key);
   if (!item) return null;
-  if (Date.now() > item.expiresAt) {
-    getMemoryStore().trendSampleCache.delete(key);
+  const nowMs = Date.now();
+  const updatedAt = resolveTrendCacheUpdatedAt(item.expiresAt, item.updatedAt);
+  if (isTrendCacheExpired(item.expiresAt, updatedAt, nowMs)) {
+    store.trendSampleCache.delete(key);
     return null;
+  }
+  if (updatedAt !== item.updatedAt) {
+    store.trendSampleCache.set(key, { ...item, updatedAt });
   }
   return item.value;
 }
@@ -1732,7 +1772,7 @@ export async function getTrendSampleSummaryCache(
   } else {
     try {
       const rows = (await sql`
-        SELECT payload, expires_at
+        SELECT payload, expires_at, updated_at
         FROM ${sql.unsafe(TRENDS_CACHE_TABLE)}
         WHERE cache_key = ${key}
         LIMIT 1
@@ -1741,7 +1781,8 @@ export async function getTrendSampleSummaryCache(
       if (rows.length > 0) {
         const row = rows[0];
         const expiresAt = toNumber(row.expires_at, 0);
-        if (Date.now() > expiresAt) {
+        const updatedAt = resolveTrendCacheUpdatedAt(expiresAt, row.updated_at);
+        if (isTrendCacheExpired(expiresAt, updatedAt, Date.now())) {
           await sql`
             DELETE FROM ${sql.unsafe(TRENDS_CACHE_TABLE)}
             WHERE cache_key = ${key}
@@ -1755,6 +1796,7 @@ export async function getTrendSampleSummaryCache(
             getMemoryStore().trendSampleCache.set(key, {
               value: payload,
               expiresAt,
+              updatedAt,
             });
           }
           return payload;
@@ -1777,12 +1819,14 @@ export async function setTrendSampleSummaryCache(
   ttlSeconds = 3600
 ): Promise<void> {
   const key = trendSampleCacheKey(period, kind);
-  const expiresAt = Date.now() + ttlSeconds * 1000;
+  const updatedAt = Date.now();
+  const expiresAt = updatedAt + ttlSeconds * 1000;
 
   if (TREND_MEMORY_CACHE_ENABLED) {
     getMemoryStore().trendSampleCache.set(key, {
       value,
       expiresAt,
+      updatedAt,
     });
   }
 
@@ -1812,7 +1856,7 @@ export async function setTrendSampleSummaryCache(
         ${kind},
         ${JSON.stringify(value)}::jsonb,
         ${expiresAt},
-        ${Date.now()}
+        ${updatedAt}
       )
       ON CONFLICT (cache_key) DO UPDATE SET
         period = EXCLUDED.period,
@@ -1850,7 +1894,7 @@ export async function getTrendsCache(
   } else {
     try {
       const rows = (await sql`
-        SELECT payload, expires_at
+        SELECT payload, expires_at, updated_at
         FROM ${sql.unsafe(TRENDS_CACHE_TABLE)}
         WHERE cache_key = ${key}
         LIMIT 1
@@ -1859,7 +1903,8 @@ export async function getTrendsCache(
       if (rows.length > 0) {
         const row = rows[0];
         const expiresAt = toNumber(row.expires_at, 0);
-        if (Date.now() > expiresAt) {
+        const updatedAt = resolveTrendCacheUpdatedAt(expiresAt, row.updated_at);
+        if (isTrendCacheExpired(expiresAt, updatedAt, Date.now())) {
           await sql`
             DELETE FROM ${sql.unsafe(TRENDS_CACHE_TABLE)}
             WHERE cache_key = ${key}
@@ -1873,6 +1918,7 @@ export async function getTrendsCache(
             getMemoryStore().trendCache.set(key, {
               value: payload,
               expiresAt,
+              updatedAt,
             });
           }
           return payload;
@@ -1898,11 +1944,13 @@ export async function setTrendsCache(
   ttlSeconds = 3600
 ): Promise<void> {
   const key = trendCacheKey(period, view, kind, overallPage, yearPage);
-  const expiresAt = Date.now() + ttlSeconds * 1000;
+  const updatedAt = Date.now();
+  const expiresAt = updatedAt + ttlSeconds * 1000;
   if (TREND_MEMORY_CACHE_ENABLED) {
     getMemoryStore().trendCache.set(key, {
       value,
       expiresAt,
+      updatedAt,
     });
   }
 
@@ -1932,7 +1980,7 @@ export async function setTrendsCache(
         ${kind},
         ${JSON.stringify(value)}::jsonb,
         ${expiresAt},
-        ${Date.now()}
+        ${updatedAt}
       )
       ON CONFLICT (cache_key) DO UPDATE SET
         period = EXCLUDED.period,
