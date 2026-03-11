@@ -15,6 +15,7 @@ const donationAcknowledgements: Array<{
   amount: string;
   message: string;
 }> = [
+  { date: "2026-03-11", amount: "100", message: "坏了我微信基本没存啥钱，下次加个支付宝的吧.jpg ​​​" },
   { date: "2026-03-11", amount: "50", message: "请阿旻老师吃kfc" },
   { date: "2026-03-11", amount: "20", message: "可惜保存图片失效了" },
   { date: "2026-03-11", amount: "52", message: "Love explosions！" },
