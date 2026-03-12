@@ -17,6 +17,14 @@ const donationAcknowledgements: Array<{
   amount: string;
   message: string;
 }> = [
+  { date: "2026-03-12", name: "梦游到老地方", amount: "10", message: "好全的库 非常感谢" },
+  { date: "2026-03-12", name: "匿名", amount: "3", message: "" },
+  { date: "2026-03-12", name: "森", amount: "3", message: "" },
+  { date: "2026-03-12", name: "匿名", amount: "6", message: "怎么没有新破天一剑啊啊啊 究极老mmo了（开发者注：已在bangumi添加条目）" },
+  { date: "2026-03-12", name: "榴莲千层", amount: "6", message: "" },
+  { date: "2026-03-12", name: "Olympics🍭", amount: "6", message: "谢谢！" },
+  { date: "2026-03-12", name: "DreamHe", amount: "100", message: "" },
+  { date: "2026-03-12", name: "贺胖晨", amount: "3", message: "谢谢大兄弟" },
   { date: "2026-03-12", name: "匿名", amount: "6", message: "" },
   { date: "2026-03-12", name: "csan", amount: "10", message: "好全的作品库！" },
   { date: "2026-03-12", name: "梁亮", amount: "1", message: "" },

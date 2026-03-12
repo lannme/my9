@@ -14,6 +14,11 @@ import { cn } from "@/lib/utils";
 
 type TrendsApiResponse = TrendResponse & { ok: boolean };
 
+type TrendsClientCacheEntry = {
+  expiresAt: number;
+  response: TrendResponse;
+};
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 // 北京时间 2026-03-09 10:00（UTC+8）= UTC 2026-03-09 02:00
 const PROJECT_LAUNCHED_AT_MS = Date.UTC(2026, 2, 9, 2, 0, 0, 0);
@@ -42,6 +47,8 @@ const GROUPED_GAMES_PER_BUCKET = 5;
 const BANGUMI_TRENDS_COVER_WIDTH = 100;
 const TOP_FAB_SHOW_AFTER_PX = 360;
 const TOP_FAB_DIRECTION_EPSILON_PX = 2;
+const TRENDS_CLIENT_CACHE_TTL_MS = 2 * 60 * 1000;
+const TRENDS_CLIENT_CACHE_MAX = 96;
 const OVERALL_PAGE_GROUPS = Array.from({ length: OVERALL_PAGE_COUNT }, (_, index) => {
   const startRank = index * OVERALL_PAGE_SIZE + 1;
   const endRank = (index + 1) * OVERALL_PAGE_SIZE;
@@ -138,6 +145,53 @@ function groupedBucketHint(view: TrendView): string {
       return `该年份下作品 Top${GROUPED_GAMES_PER_BUCKET}`;
     default:
       return `该分组下作品 Top${GROUPED_GAMES_PER_BUCKET}`;
+  }
+}
+
+function buildTrendsClientCacheKey(
+  kind: SubjectKind,
+  period: TrendPeriod,
+  view: TrendView,
+  overallPage: number,
+  yearPage: TrendYearPage
+) {
+  return `${kind}:${period}:${view}:op${overallPage}:yp${yearPage}`;
+}
+
+function normalizeTrendsApiResponse(
+  response: Partial<TrendsApiResponse> & { error?: string }
+): TrendResponse {
+  return {
+    period: response.period as TrendPeriod,
+    view: response.view as TrendView,
+    sampleCount: Number(response.sampleCount || 0),
+    range: {
+      from: typeof response.range?.from === "number" ? response.range.from : null,
+      to: typeof response.range?.to === "number" ? response.range.to : null,
+    },
+    lastUpdatedAt: Number(response.lastUpdatedAt || Date.now()),
+    items: Array.isArray(response.items) ? response.items : [],
+  };
+}
+
+function pruneExpiredTrendsClientCache(cache: Map<string, TrendsClientCacheEntry>, now = Date.now()) {
+  const expiredKeys: string[] = [];
+  cache.forEach((value, key) => {
+    if (!value || typeof value.expiresAt !== "number" || value.expiresAt <= now) {
+      expiredKeys.push(key);
+    }
+  });
+
+  for (const key of expiredKeys) {
+    cache.delete(key);
+  }
+}
+
+function trimTrendsClientCache(cache: Map<string, TrendsClientCacheEntry>) {
+  while (cache.size > TRENDS_CLIENT_CACHE_MAX) {
+    const firstKey = cache.keys().next().value;
+    if (!firstKey) return;
+    cache.delete(firstKey);
   }
 }
 
@@ -259,8 +313,32 @@ export default function TrendsClientPage({
   const [error, setError] = useState(initialError);
   const [showTopFab, setShowTopFab] = useState(false);
   const skipFirstEffectRef = useRef(!shouldRefetchOnMount);
+  const trendsClientCacheRef = useRef<Map<string, TrendsClientCacheEntry>>(new Map());
+  const trendsRequestAbortRef = useRef<AbortController | null>(null);
   const requestOverallPage = view === "overall" ? overallPage : 1;
   const requestYearPage: TrendYearPage = view === "year" ? yearPage : "recent";
+
+  useEffect(() => {
+    // Keep mount-time recovery refetch path intact for stale-empty/error SSR payloads.
+    if (!initialData || shouldRefetchOnMount) return;
+
+    const initialRequestOverallPage = initialView === "overall" ? initialOverallPage : 1;
+    const initialRequestYearPage: TrendYearPage = initialView === "year" ? initialYearPage : "recent";
+    const cacheKey = buildTrendsClientCacheKey(
+      initialKind,
+      initialPeriod,
+      initialView,
+      initialRequestOverallPage,
+      initialRequestYearPage
+    );
+
+    trendsClientCacheRef.current.set(cacheKey, {
+      expiresAt: Date.now() + TRENDS_CLIENT_CACHE_TTL_MS,
+      response: initialData,
+    });
+    pruneExpiredTrendsClientCache(trendsClientCacheRef.current);
+    trimTrendsClientCache(trendsClientCacheRef.current);
+  }, [initialData, initialKind, initialOverallPage, initialPeriod, initialView, initialYearPage, shouldRefetchOnMount]);
 
   useEffect(() => {
     if (skipFirstEffectRef.current) {
@@ -268,7 +346,23 @@ export default function TrendsClientPage({
       return;
     }
 
+    const cacheKey = buildTrendsClientCacheKey(kind, period, view, requestOverallPage, requestYearPage);
+    const now = Date.now();
+    pruneExpiredTrendsClientCache(trendsClientCacheRef.current, now);
+    const cached = trendsClientCacheRef.current.get(cacheKey);
+    if (cached && cached.expiresAt > now) {
+      setError("");
+      setLoading(false);
+      setData(cached.response);
+      return;
+    }
+
     let active = true;
+    const abortController = new AbortController();
+    if (trendsRequestAbortRef.current) {
+      trendsRequestAbortRef.current.abort();
+    }
+    trendsRequestAbortRef.current = abortController;
 
     async function loadTrends() {
       setLoading(true);
@@ -286,39 +380,45 @@ export default function TrendsClientPage({
         if (view === "year") {
           params.set("yearPage", requestYearPage);
         }
-        const response = await fetch(`/api/trends?${params.toString()}`);
+        const response = await fetch(`/api/trends?${params.toString()}`, {
+          signal: abortController.signal,
+        });
         const json = (await response.json()) as Partial<TrendsApiResponse> & { error?: string };
 
-        if (!active) return;
+        if (!active || abortController.signal.aborted) return;
         if (!response.ok || !json.ok) {
           setError(json.error || "趋势数据加载失败");
           setData(null);
           return;
         }
 
-        setData({
-          period: json.period as TrendPeriod,
-          view: json.view as TrendView,
-          sampleCount: Number(json.sampleCount || 0),
-          range: {
-            from: typeof json.range?.from === "number" ? json.range.from : null,
-            to: typeof json.range?.to === "number" ? json.range.to : null,
-          },
-          lastUpdatedAt: Number(json.lastUpdatedAt || Date.now()),
-          items: Array.isArray(json.items) ? json.items : [],
+        const normalizedResponse = normalizeTrendsApiResponse(json);
+        trendsClientCacheRef.current.set(cacheKey, {
+          expiresAt: Date.now() + TRENDS_CLIENT_CACHE_TTL_MS,
+          response: normalizedResponse,
         });
+        pruneExpiredTrendsClientCache(trendsClientCacheRef.current);
+        trimTrendsClientCache(trendsClientCacheRef.current);
+
+        setData(normalizedResponse);
       } catch {
-        if (!active) return;
+        if (!active || abortController.signal.aborted) return;
         setError("趋势数据加载失败");
         setData(null);
       } finally {
-        if (active) setLoading(false);
+        if (active && !abortController.signal.aborted) {
+          setLoading(false);
+        }
       }
     }
 
     loadTrends();
     return () => {
       active = false;
+      abortController.abort();
+      if (trendsRequestAbortRef.current === abortController) {
+        trendsRequestAbortRef.current = null;
+      }
     };
   }, [kind, period, requestOverallPage, requestYearPage, view]);
 

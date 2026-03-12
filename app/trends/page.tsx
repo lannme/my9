@@ -1,4 +1,5 @@
 import TrendsClientPage from "@/app/components/TrendsClientPage";
+import { unstable_cache } from "next/cache";
 import type { TrendResponse } from "@/lib/share/types";
 import {
   parseTrendKind,
@@ -8,6 +9,28 @@ import {
   parseTrendYearPage,
   resolveTrendResponse,
 } from "@/lib/share/trends-query";
+
+const TRENDS_PAGE_ISR_TTL_SECONDS = 300;
+
+const resolveTrendResponseCached = unstable_cache(
+  async (
+    kind: string,
+    period: string,
+    view: string,
+    overallPage: number,
+    yearPage: string
+  ) => {
+    return resolveTrendResponse({
+      kind: parseTrendKind(kind),
+      period: parseTrendPeriod(period),
+      view: parseTrendView(view),
+      overallPage: parseTrendOverallPage(String(overallPage)),
+      yearPage: parseTrendYearPage(yearPage),
+    });
+  },
+  ["trends-page-response-v1"],
+  { revalidate: TRENDS_PAGE_ISR_TTL_SECONDS }
+);
 
 function resolveSearchParam(
   value: string | string[] | undefined
@@ -32,18 +55,31 @@ export default async function TrendsPage({
   const initialView = parseTrendView(resolveSearchParam(searchParams?.view));
   const initialOverallPage = parseTrendOverallPage(resolveSearchParam(searchParams?.overallPage));
   const initialYearPage = parseTrendYearPage(resolveSearchParam(searchParams?.yearPage));
+  const initialParams = {
+    kind: initialKind,
+    period: initialPeriod,
+    view: initialView,
+    overallPage: initialOverallPage,
+    yearPage: initialYearPage,
+  };
 
   let initialData: TrendResponse | null = null;
   let initialError = "";
 
   try {
-    initialData = await resolveTrendResponse({
-      kind: initialKind,
-      period: initialPeriod,
-      view: initialView,
-      overallPage: initialOverallPage,
-      yearPage: initialYearPage,
-    });
+    // Keep `today` requests uncached at the page layer so low-sample recovery can
+    // run on every request after the midnight seed window.
+    if (initialParams.period === "today") {
+      initialData = await resolveTrendResponse(initialParams);
+    } else {
+      initialData = await resolveTrendResponseCached(
+        initialParams.kind,
+        initialParams.period,
+        initialParams.view,
+        initialParams.overallPage,
+        initialParams.yearPage
+      );
+    }
   } catch {
     initialError = "趋势数据加载失败";
   }
