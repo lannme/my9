@@ -14,6 +14,7 @@ export default function HomeKindEntry() {
     game: null,
     anime: null,
     tv: null,
+    movie: null,
     manga: null,
     lightnovel: null,
     work: null,

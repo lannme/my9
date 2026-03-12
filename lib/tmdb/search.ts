@@ -61,14 +61,6 @@ type TmdbTvResult = {
   overview?: string;
 };
 
-// TMDB Search TV API 返回的分页结构
-type TmdbSearchTvResponse = {
-  page: number;
-  total_pages: number;
-  total_results: number;
-  results: TmdbTvResult[];
-};
-
 // TMDB Search Movie API 返回的单个结果
 type TmdbMovieResult = {
   id: number;
@@ -78,14 +70,6 @@ type TmdbMovieResult = {
   release_date?: string;
   genre_ids?: number[];
   overview?: string;
-};
-
-// TMDB Search Movie API 返回的分页结构
-type TmdbSearchMovieResponse = {
-  page: number;
-  total_pages: number;
-  total_results: number;
-  results: TmdbMovieResult[];
 };
 
 function extractYear(raw?: string | null): number | undefined {
