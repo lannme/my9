@@ -59,6 +59,16 @@ function sanitizeGame(input: unknown): ShareGame | null {
         .slice(0, 5)
     : undefined;
 
+  const storeUrlsRaw = game.storeUrls;
+  const storeUrls =
+    storeUrlsRaw && typeof storeUrlsRaw === "object"
+      ? (Object.fromEntries(
+          Object.entries(storeUrlsRaw)
+            .filter(([k, v]) => typeof k === "string" && typeof v === "string" && String(v).trim())
+            .map(([k, v]) => [k, sanitizeString(v)])
+        ) as Record<string, string>)
+      : undefined;
+
   return {
     id,
     name,
@@ -66,6 +76,7 @@ function sanitizeGame(input: unknown): ShareGame | null {
     cover,
     releaseYear,
     genres,
+    storeUrls: storeUrls && Object.keys(storeUrls).length > 0 ? storeUrls : undefined,
     comment,
     spoiler,
   };

@@ -1,4 +1,4 @@
-export type SubjectKind = "game" | "anime" | "tv" | "movie" | "manga" | "lightnovel" | "work";
+export type SubjectKind = "game" | "anime" | "tv" | "movie" | "manga" | "lightnovel" | "work" | "song" | "album";
 
 export const DEFAULT_SUBJECT_KIND: SubjectKind = "game";
 
@@ -9,6 +9,8 @@ export const SUBJECT_KIND_ORDER: SubjectKind[] = [
   "movie",
   "manga",
   "lightnovel",
+  "song",
+  "album",
   "work",
 ];
 
@@ -136,6 +138,32 @@ const KIND_META_MAP: Record<SubjectKind, SubjectKindMeta> = {
     shareTitle: "构成我的九部作品",
     draftStorageKey: "my-nine-work:v1",
     trendLabel: "作品",
+    search: {},
+  },
+  song: {
+    kind: "song",
+    label: "单曲",
+    longLabel: "九首单曲",
+    subtitle: "向世界传达你所爱的单曲。",
+    searchPlaceholder: "输入单曲/歌曲名称",
+    searchDialogTitle: "搜索单曲",
+    searchIdleHint: "输入单曲名称开始搜索",
+    shareTitle: "构成我的九首单曲",
+    draftStorageKey: "my-nine-song:v1",
+    trendLabel: "单曲",
+    search: {},
+  },
+  album: {
+    kind: "album",
+    label: "专辑",
+    longLabel: "九张专辑",
+    subtitle: "向世界传达你所爱的专辑。",
+    searchPlaceholder: "输入专辑名称",
+    searchDialogTitle: "搜索专辑",
+    searchIdleHint: "输入专辑名称开始搜索",
+    shareTitle: "构成我的九张专辑",
+    draftStorageKey: "my-nine-album:v1",
+    trendLabel: "专辑",
     search: {},
   },
 };

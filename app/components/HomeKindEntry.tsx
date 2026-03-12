@@ -17,6 +17,8 @@ export default function HomeKindEntry() {
     movie: null,
     manga: null,
     lightnovel: null,
+    song: null,
+    album: null,
     work: null,
   });
 
