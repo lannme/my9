@@ -52,8 +52,6 @@ function buildSearchResponse(query: string, kind = DEFAULT_KIND) {
           platforms: ["PC"],
         },
       ],
-      topPickIds: [101],
-      suggestions: ["可尝试游戏正式名或别名"],
       noResultQuery: null,
     };
   }
@@ -75,8 +73,6 @@ function buildSearchResponse(query: string, kind = DEFAULT_KIND) {
         platforms: ["PC"],
       },
     ],
-    topPickIds: [id],
-    suggestions: ["减少关键词，仅保留核心词"],
     noResultQuery: null,
   };
 }

@@ -1,4 +1,4 @@
-import { SubjectKind, getSubjectKindMeta } from "@/lib/subject-kind";
+import { SubjectKind } from "@/lib/subject-kind";
 import { ShareSubject, SubjectSearchResponse } from "@/lib/share/types";
 
 const ITUNES_API_BASE_URL = "https://itunes.apple.com";
@@ -137,13 +137,27 @@ function scoreCandidate(query: string, subject: ShareSubject): number {
   return score;
 }
 
-function createSuggestions(kind: SubjectKind): string[] {
-  const kindLabel = getSubjectKindMeta(kind).label;
-  return [
-    `尝试输入"歌手名 ${kindLabel}名"进行精确组合搜索`,
-    "如果搜不到，可以尝试繁体字或英文原名",
-    "减少多余的关键词，仅保留核心要素",
-  ];
+function reorderByPromotedIds<T extends { id: number | string }>(
+  items: T[],
+  promotedIds: Array<number | string>
+): T[] {
+  if (items.length === 0 || promotedIds.length === 0) {
+    return items;
+  }
+
+  const promotedSet = new Set(promotedIds.map((id) => String(id)));
+  const promoted: T[] = [];
+  const rest: T[] = [];
+
+  for (const item of items) {
+    if (promotedSet.has(String(item.id))) {
+      promoted.push(item);
+    } else {
+      rest.push(item);
+    }
+  }
+
+  return [...promoted, ...rest];
 }
 
 export function buildItunesSearchResponse(params: {
@@ -163,16 +177,15 @@ export function buildItunesSearchResponse(params: {
     .slice(0, 3)
     .map((item) => item.id);
 
-  const topPickIds =
+  const promotedIds =
     ranked.length > 0 ? ranked : items.slice(0, 2).map((item) => item.id);
+  const orderedItems = reorderByPromotedIds(items, promotedIds);
 
   return {
     ok: true,
     source: "itunes",
     kind,
-    items,
-    topPickIds,
-    suggestions: createSuggestions(kind),
+    items: orderedItems,
     noResultQuery: items.length === 0 && query.trim() ? query : null,
   };
 }

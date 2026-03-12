@@ -38,8 +38,6 @@ type DraftSnapshot = {
 };
 
 type SearchMeta = {
-  topPickIds: Array<string | number>;
-  suggestions: string[];
   noResultQuery: string | null;
 };
 
@@ -50,10 +48,8 @@ type InitialReadonlyShareData = {
   games: Array<ShareGame | null>;
 };
 
-function createSearchMeta(suggestions: string[], noResultQuery: string | null = null): SearchMeta {
+function createSearchMeta(noResultQuery: string | null = null): SearchMeta {
   return {
-    topPickIds: [],
-    suggestions,
     noResultQuery,
   };
 }
@@ -194,7 +190,7 @@ export default function My9V3App({
   const navigationFallbackTimerRef = useRef<number | null>(null);
   const navigationFallbackTargetRef = useRef<string | null>(null);
   const [searchMeta, setSearchMeta] = useState<SearchMeta>(
-    createSearchMeta([`可尝试${kindMeta.label}正式名或别名`, "中日英名称切换检索通常更有效", "减少关键词，仅保留核心词"])
+    createSearchMeta()
   );
 
   const [commentOpen, setCommentOpen] = useState(false);
@@ -210,11 +206,6 @@ export default function My9V3App({
   const draftStorageKey = kindMeta.draftStorageKey;
   const selectionUnit = kindMeta.selectionUnit;
   const shareTitle = getSubjectKindShareTitle(kind);
-  const defaultSuggestions = useMemo(
-    () => [`可尝试${kindMeta.label}正式名或别名`, "中日英名称切换检索通常更有效", "减少关键词，仅保留核心词"],
-    [kindMeta.label]
-  );
-
   function ensureSearchClientCacheHydrated() {
     if (searchClientCacheHydratedRef.current) return;
     searchClientCacheRef.current = readSearchClientCacheFromSession();
@@ -238,10 +229,6 @@ export default function My9V3App({
     const timer = setTimeout(() => setToast(null), 2800);
     return () => clearTimeout(timer);
   }, [toast]);
-
-  useEffect(() => {
-    setSearchMeta(createSearchMeta(defaultSuggestions));
-  }, [defaultSuggestions]);
 
   useEffect(() => {
     if (searchClientCacheHydratedRef.current) return;
@@ -461,11 +448,6 @@ export default function My9V3App({
       setSearchCommittedQuery(normalizedQuery);
       setSearchResults(Array.isArray(response.items) ? response.items : []);
       setSearchMeta({
-        topPickIds: Array.isArray(response.topPickIds) ? response.topPickIds : [],
-        suggestions:
-          Array.isArray(response.suggestions) && response.suggestions.length > 0
-            ? response.suggestions
-            : defaultSuggestions,
         noResultQuery: typeof response.noResultQuery === "string" ? response.noResultQuery : null,
       });
       setSearchActiveIndex(response.items.length > 0 ? 0 : -1);
@@ -498,7 +480,7 @@ export default function My9V3App({
       if (!response.ok || !json?.ok) {
         setSearchError(json?.error || "搜索失败，请稍后再试");
         setSearchResults([]);
-        setSearchMeta(createSearchMeta(defaultSuggestions, normalizedQuery));
+        setSearchMeta(createSearchMeta(normalizedQuery));
         return;
       }
 
@@ -512,11 +494,6 @@ export default function My9V3App({
               : "bangumi",
         kind,
         items: Array.isArray(json.items) ? json.items : [],
-        topPickIds: Array.isArray(json.topPickIds) ? json.topPickIds : [],
-        suggestions:
-          Array.isArray(json.suggestions) && json.suggestions.length > 0
-            ? json.suggestions
-            : defaultSuggestions,
         noResultQuery: typeof json.noResultQuery === "string" ? json.noResultQuery : null,
       };
 
@@ -530,15 +507,13 @@ export default function My9V3App({
 
       setSearchResults(nextResponse.items);
       setSearchMeta({
-        topPickIds: nextResponse.topPickIds,
-        suggestions: nextResponse.suggestions,
         noResultQuery: nextResponse.noResultQuery,
       });
       setSearchActiveIndex(nextResponse.items.length > 0 ? 0 : -1);
     } catch {
       setSearchError("搜索失败，请稍后再试");
       setSearchResults([]);
-      setSearchMeta(createSearchMeta(defaultSuggestions, normalizedQuery));
+      setSearchMeta(createSearchMeta(normalizedQuery));
     } finally {
       setSearchLoading(false);
     }
@@ -862,14 +837,12 @@ export default function My9V3App({
           if (value.trim().length === 0) {
             setSearchResults([]);
             setSearchCommittedQuery("");
-            setSearchMeta(createSearchMeta(defaultSuggestions));
+            setSearchMeta(createSearchMeta());
           }
         }}
         loading={searchLoading}
         error={searchError}
         results={searchResults}
-        topPickIds={searchMeta.topPickIds}
-        suggestions={searchMeta.suggestions}
         noResultQuery={searchMeta.noResultQuery}
         activeIndex={searchActiveIndex}
         onActiveIndexChange={setSearchActiveIndex}

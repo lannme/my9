@@ -93,13 +93,27 @@ function scoreCandidate(query: string, subject: ShareSubject): number {
   return score;
 }
 
-function createSuggestions(kind: SubjectKind): string[] {
-  const kindLabel = getSubjectKindMeta(kind).label;
-  return [
-    `可尝试${kindLabel}正式名或别名`,
-    "中日英名称切换检索通常更有效",
-    "减少关键词，仅保留核心词",
-  ];
+function reorderByPromotedIds<T extends { id: number | string }>(
+  items: T[],
+  promotedIds: Array<number | string>
+): T[] {
+  if (items.length === 0 || promotedIds.length === 0) {
+    return items;
+  }
+
+  const promotedSet = new Set(promotedIds.map((id) => String(id)));
+  const promoted: T[] = [];
+  const rest: T[] = [];
+
+  for (const item of items) {
+    if (promotedSet.has(String(item.id))) {
+      promoted.push(item);
+    } else {
+      rest.push(item);
+    }
+  }
+
+  return [...promoted, ...rest];
 }
 
 function toSearchResponseItem(item: ShareSubject): ShareSubject {
@@ -133,16 +147,15 @@ export function buildBangumiSearchResponse(
     .slice(0, 3)
     .map((item) => item.id);
 
-  const topPickIds =
-    ranked.length > 0 ? ranked : visibleItems.slice(0, 2).map((item) => item.id);
+  const promotedIds =
+    ranked.length > 0 ? ranked : responseItems.slice(0, 2).map((item) => item.id);
+  const orderedItems = reorderByPromotedIds(responseItems, promotedIds);
 
   return {
     ok: true,
     source: "bangumi",
     kind,
-    items: responseItems,
-    topPickIds,
-    suggestions: responseItems.length === 0 ? createSuggestions(kind) : [],
+    items: orderedItems,
     noResultQuery: visibleItems.length === 0 && query.trim() ? query : null,
   };
 }

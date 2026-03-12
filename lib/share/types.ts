@@ -25,8 +25,6 @@ export interface SubjectSearchResponse {
   source: "bangumi" | "tmdb" | "itunes";
   kind: SubjectKind;
   items: ShareSubject[];
-  topPickIds: Array<string | number>;
-  suggestions: string[];
   noResultQuery: string | null;
 }
 

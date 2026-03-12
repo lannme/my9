@@ -32,8 +32,6 @@ interface SearchDialogProps {
   loading: boolean;
   error: string;
   results: ShareGame[];
-  topPickIds: Array<string | number>;
-  suggestions: string[];
   noResultQuery: string | null;
   activeIndex: number;
   onActiveIndexChange: (index: number) => void;
@@ -47,8 +45,11 @@ function displayName(game: ShareGame) {
   return game.localizedName?.trim() || game.name;
 }
 
-function toIdKey(value: string | number) {
-  return String(value);
+function getNoResultHint(kind: SubjectKind, subjectLabel: string): string {
+  if (kind === "song" || kind === "album") {
+    return "尝试歌手名 + 歌曲/专辑名进行搜索";
+  }
+  return `尝试${subjectLabel}正式名或别名`;
 }
 
 export function SearchDialog({
@@ -65,8 +66,6 @@ export function SearchDialog({
   loading,
   error,
   results,
-  topPickIds,
-  suggestions,
   noResultQuery,
   activeIndex,
   onActiveIndexChange,
@@ -74,26 +73,7 @@ export function SearchDialog({
   onPickGame,
 }: SearchDialogProps) {
   const trimmedQuery = query.trim();
-
-  const orderedResults = useMemo(() => {
-    if (results.length === 0 || topPickIds.length === 0) {
-      return results;
-    }
-
-    const topSet = new Set(topPickIds.map(toIdKey));
-    const top: ShareGame[] = [];
-    const rest: ShareGame[] = [];
-
-    for (const item of results) {
-      if (topSet.has(String(item.id))) {
-        top.push(item);
-      } else {
-        rest.push(item);
-      }
-    }
-
-    return [...top, ...rest];
-  }, [results, topPickIds]);
+  const orderedResults = results;
 
   const hasSearchedCurrentQuery = useMemo(() => {
     const committed = normalizeSearchQuery(committedQuery);
@@ -271,7 +251,6 @@ export function SearchDialog({
               error={error}
               loading={loading}
               noResultQuery={noResultQuery}
-              suggestions={suggestions}
               onRetry={onSubmitSearch}
             />
           )}
@@ -303,7 +282,6 @@ function SearchStatus(props: {
   error: string;
   loading: boolean;
   noResultQuery: string | null;
-  suggestions: string[];
   onRetry: () => void;
 }) {
   const {
@@ -314,7 +292,6 @@ function SearchStatus(props: {
     error,
     loading,
     noResultQuery,
-    suggestions,
     onRetry,
   } = props;
 
@@ -341,11 +318,12 @@ function SearchStatus(props: {
   }
 
   if (state === "no-results") {
+    const noResultHint = getNoResultHint(kind, subjectLabel);
     return (
       <div className="flex flex-col items-center justify-center py-10 text-muted-foreground" aria-live="polite">
         <SubjectKindIcon kind={kind} className="mb-2 h-8 w-8 opacity-50" />
         <p>{noResultQuery ? `未找到“${noResultQuery}”` : `未找到相关${subjectLabel}`}</p>
-        <p className="mt-2 text-sm">{(suggestions[0] || "尝试更换关键词后重试").replace(/^[\-•]\s*/, "")}</p>
+        <p className="mt-2 text-sm">{noResultHint}</p>
       </div>
     );
   }
