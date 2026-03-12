@@ -501,7 +501,7 @@ export default function My9V3App({
 
       const nextResponse: SubjectSearchResponse = {
         ok: true,
-        source: "bangumi",
+        source: json.source === "tmdb" ? "tmdb" : "bangumi",
         kind,
         items: Array.isArray(json.items) ? json.items : [],
         topPickIds: Array.isArray(json.topPickIds) ? json.topPickIds : [],
@@ -735,7 +735,7 @@ export default function My9V3App({
             大家的构成
             <span className="text-red-500">(New!)</span>
           </button>
-          <p className="text-sm text-amber-600 dark:text-amber-400">3月11日16时56分开始的服务器崩溃已于17时38分修复！如果途中遭遇炸服可重新尝试生成。</p>
+          <p className="text-sm text-amber-600 dark:text-amber-400">感谢 <a href="https://github.com/MiQieR" target="_blank" rel="noreferrer" className="font-semibold text-sky-600 underline decoration-sky-300 underline-offset-2 hover:text-sky-700 dark:text-sky-400 dark:decoration-sky-500 dark:hover:text-sky-300">MiQieR</a> 的贡献，现已追加电影/电视剧的支持！</p>
           <SupportButton/>
         </header>
 
@@ -820,13 +820,14 @@ export default function My9V3App({
           games={games}
           subjectLabel={kindMeta.label}
           bangumiSearchCat={kindMeta.search.bangumiSearchCat}
+          kind={kind}
           readOnly={isReadonly}
           spoilerExpandedSet={spoilerExpandedSet}
           onToggleSpoiler={handleToggleSpoiler}
           onOpenComment={openComment}
         />
 
-        <SiteFooter className="w-full" />
+        <SiteFooter className="w-full" kind={kind} />
       </div>
 
       <SearchDialog

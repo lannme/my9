@@ -1,12 +1,14 @@
 import Image from "next/image";
 import { Globe } from "lucide-react";
 import { ShareGame } from "@/lib/share/types";
+import type { SubjectKind } from "@/lib/subject-kind";
 import { ReadonlySpoilerComment } from "@/app/components/v3/ReadonlySpoilerComment";
 
 interface ReadonlySelectedGamesListProps {
   games: Array<ShareGame | null>;
   subjectLabel: string;
   bangumiSearchCat?: number;
+  kind?: SubjectKind;
 }
 
 function displayName(game: ShareGame): string {
@@ -25,10 +27,42 @@ function bangumiLink(game: ShareGame, cat?: number): string {
   return `https://bgm.tv/subject_search/${query}`;
 }
 
+function tmdbTvLink(game: ShareGame): string {
+  const id = String(game.id || "").trim();
+  if (/^\d+$/.test(id)) {
+    return `https://www.themoviedb.org/tv/${id}`;
+  }
+  const query = encodeURIComponent(displayName(game));
+  return `https://www.themoviedb.org/search/tv?query=${query}`;
+}
+
+function tmdbMovieLink(game: ShareGame): string {
+  const id = String(game.id || "").trim();
+  if (/^\d+$/.test(id)) {
+    return `https://www.themoviedb.org/movie/${id}`;
+  }
+  const query = encodeURIComponent(displayName(game));
+  return `https://www.themoviedb.org/search/movie?query=${query}`;
+}
+
+function subjectLink(game: ShareGame, kind?: SubjectKind, cat?: number): string {
+  if (kind === "tv") return tmdbTvLink(game);
+  if (kind === "movie") return tmdbMovieLink(game);
+  return bangumiLink(game, cat);
+}
+
+function subjectSourceLabel(kind?: SubjectKind): string {
+  if (kind === "tv" || kind === "movie") {
+    return "TMDB";
+  }
+  return "Bangumi";
+}
+
 export function ReadonlySelectedGamesList({
   games,
   subjectLabel,
   bangumiSearchCat,
+  kind,
 }: ReadonlySelectedGamesListProps) {
   const selected = games
     .map((game, index) => ({ index, game }))
@@ -98,10 +132,10 @@ export function ReadonlySelectedGamesList({
 
               <div className="-mt-0.5 flex flex-col items-center gap-1 self-start sm:-mt-1">
                 <a
-                  href={bangumiLink(game, bangumiSearchCat)}
+                  href={subjectLink(game, kind, bangumiSearchCat)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  title="在 Bangumi 查看"
+                  title={`在 ${subjectSourceLabel(kind)} 查看`}
                   className="rounded-md border border-border bg-muted p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                 >
                   <Globe className="h-4 w-4" />

@@ -17,6 +17,7 @@ const donationAcknowledgements: Array<{
   amount: string;
   message: string;
 }> = [
+  { date: "2026-03-12", name: "匿名", amount: "50", message: "太棒啦宝宝" },
   { date: "2026-03-12", name: "许喆隆", amount: "3", message: "" },
   { date: "2026-03-12", name: "太阳即为正義", amount: "3", message: "DITF国家队天下第一" },
   { date: "2026-03-12", name: "妍子", amount: "10", message: "" },

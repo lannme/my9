@@ -97,6 +97,43 @@ function toBangumiLink(subjectId: string | undefined, name: string): string {
   return `https://bgm.tv/subject_search/${query}`;
 }
 
+function toTmdbTvLink(subjectId: string | undefined, name: string): string {
+  const normalizedId = String(subjectId || "").trim();
+  if (/^\d+$/.test(normalizedId)) {
+    return `https://www.themoviedb.org/tv/${normalizedId}`;
+  }
+
+  const query = encodeURIComponent(name.trim());
+  return `https://www.themoviedb.org/search/tv?query=${query}`;
+}
+
+function toTmdbMovieLink(subjectId: string | undefined, name: string): string {
+  const normalizedId = String(subjectId || "").trim();
+  if (/^\d+$/.test(normalizedId)) {
+    return `https://www.themoviedb.org/movie/${normalizedId}`;
+  }
+
+  const query = encodeURIComponent(name.trim());
+  return `https://www.themoviedb.org/search/movie?query=${query}`;
+}
+
+function toSubjectLink(kind: SubjectKind, subjectId: string | undefined, name: string): string {
+  if (kind === "tv") {
+    return toTmdbTvLink(subjectId, name);
+  }
+  if (kind === "movie") {
+    return toTmdbMovieLink(subjectId, name);
+  }
+  return toBangumiLink(subjectId, name);
+}
+
+function subjectSourceLabel(kind: SubjectKind): string {
+  if (kind === "tv" || kind === "movie") {
+    return "TMDB";
+  }
+  return "Bangumi";
+}
+
 function toTrendsCoverUrl(cover: string | null | undefined): string | null {
   if (!cover) return null;
 
@@ -196,6 +233,7 @@ function trimTrendsClientCache(cache: Map<string, TrendsClientCacheEntry>) {
 }
 
 interface TrendGameMiniCardProps {
+  kind: SubjectKind;
   rank: number;
   game: TrendGameItem | null;
   count: number;
@@ -203,8 +241,9 @@ interface TrendGameMiniCardProps {
   showReleaseYear?: boolean;
 }
 
-function TrendGameMiniCard({ rank, game, count, tagLabel, showReleaseYear = true }: TrendGameMiniCardProps) {
-  const bangumiUrl = game ? toBangumiLink(game.id, game.name) : null;
+function TrendGameMiniCard({ kind, rank, game, count, tagLabel, showReleaseYear = true }: TrendGameMiniCardProps) {
+  const subjectUrl = game ? toSubjectLink(kind, game.id, game.name) : null;
+  const sourceLabel = subjectSourceLabel(kind);
   const coverUrl = game ? toTrendsCoverUrl(game.cover) : null;
   const title = game ? game.localizedName || game.name : "暂无条目";
   const subtitle = game && game.localizedName && game.localizedName !== game.name ? game.name : null;
@@ -250,12 +289,12 @@ function TrendGameMiniCard({ rank, game, count, tagLabel, showReleaseYear = true
               </div>
             </div>
 
-            {bangumiUrl ? (
+            {subjectUrl ? (
               <a
-                href={bangumiUrl}
+                href={subjectUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                title="在 Bangumi 查看"
+                title={`在 ${sourceLabel} 查看`}
                 className="rounded-md border border-border bg-muted p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
               >
                 <Globe className="h-4 w-4" />
@@ -315,6 +354,9 @@ export default function TrendsClientPage({
   const skipFirstEffectRef = useRef(!shouldRefetchOnMount);
   const trendsClientCacheRef = useRef<Map<string, TrendsClientCacheEntry>>(new Map());
   const trendsRequestAbortRef = useRef<AbortController | null>(null);
+  const kindTabsScrollerRef = useRef<HTMLDivElement | null>(null);
+  const kindTabRefs = useRef<Partial<Record<SubjectKind, HTMLButtonElement | null>>>({});
+  const kindTabsAutoScrolledRef = useRef(false);
   const requestOverallPage = view === "overall" ? overallPage : 1;
   const requestYearPage: TrendYearPage = view === "year" ? yearPage : "recent";
 
@@ -428,6 +470,27 @@ export default function TrendsClientPage({
   }, [kind, period]);
 
   useEffect(() => {
+    const scroller = kindTabsScrollerRef.current;
+    const activeButton = kindTabRefs.current[kind];
+    if (!scroller || !activeButton) return;
+
+    const scrollerRect = scroller.getBoundingClientRect();
+    const activeRect = activeButton.getBoundingClientRect();
+    const targetLeft =
+      scroller.scrollLeft +
+      (activeRect.left - scrollerRect.left) -
+      (scrollerRect.width / 2 - activeRect.width / 2);
+    const maxLeft = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+    const clampedLeft = Math.min(maxLeft, Math.max(0, targetLeft));
+
+    scroller.scrollTo({
+      left: clampedLeft,
+      behavior: kindTabsAutoScrolledRef.current ? "smooth" : "auto",
+    });
+    kindTabsAutoScrolledRef.current = true;
+  }, [kind]);
+
+  useEffect(() => {
     let ticking = false;
     let lastScrollY = Math.max(window.scrollY, 0);
 
@@ -519,14 +582,17 @@ export default function TrendsClientPage({
             </div>
 
             <div className="space-y-2 flex flex-col items-start sm:items-end mt-auto">
-              <div className="overflow-x-auto sm:overflow-visible">
-                <div className="inline-flex overflow-hidden rounded-full border border-border bg-card">
+              <div ref={kindTabsScrollerRef} className="w-full max-w-full overflow-x-auto">
+                <div className="inline-flex min-w-max overflow-hidden rounded-full border border-border bg-card">
                   {SUBJECT_KIND_ORDER.map((option) => {
                     const optionMeta = getSubjectKindMeta(option);
                     return (
                       <button
                         key={option}
                         type="button"
+                        ref={(element) => {
+                          kindTabRefs.current[option] = element;
+                        }}
                         className={cn(
                           "inline-flex h-8 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap border-l border-border px-2.5 text-xs font-semibold transition-colors first:border-l-0",
                           option === kind
@@ -680,6 +746,7 @@ export default function TrendsClientPage({
                         <div className="space-y-2">
                           {topGames.map((game, gameIndex) => (
                             <TrendGameMiniCard
+                              kind={kind}
                               key={`${bucket.key}:${game.id}:${gameIndex}`}
                               rank={gameIndex + 1}
                               game={game}
@@ -704,6 +771,7 @@ export default function TrendsClientPage({
                     const tagLabel = view === "overall" ? null : bucket.label;
                     return (
                       <TrendGameMiniCard
+                        kind={kind}
                         key={bucket.key}
                         rank={rank}
                         game={game}
@@ -718,7 +786,7 @@ export default function TrendsClientPage({
           ) : null}
         </section>
 
-        <SiteFooter />
+        <SiteFooter kind={kind} />
       </div>
 
       <button
