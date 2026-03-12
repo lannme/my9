@@ -636,6 +636,7 @@ export default function My9V3App({
         cover: game.cover,
         releaseYear: game.releaseYear,
         genres: game.genres,
+        storeUrls: game.storeUrls,
         comment: game.comment,
         spoiler: game.spoiler,
       };
