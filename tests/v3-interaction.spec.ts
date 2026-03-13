@@ -760,7 +760,7 @@ test.describe("v3 interaction", () => {
         searchPlaceholder: item.searchPlaceholder,
         query: `${item.kind}-q1`,
       });
-      await expect(page.getByText(item.localizedName)).toBeVisible();
+      await expect(page.locator("article h3", { hasText: item.localizedName }).first()).toBeVisible();
 
       page.once("dialog", async (dialog) => {
         await dialog.accept();
