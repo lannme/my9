@@ -100,6 +100,26 @@ function toBangumiLink(subjectId: string | undefined, name: string): string {
   return `https://bgm.tv/subject_search/${query}`;
 }
 
+function toBangumiCharacterLink(subjectId: string | undefined, name: string): string {
+  const normalizedId = String(subjectId || "").trim();
+  if (/^\d+$/.test(normalizedId)) {
+    return `https://bgm.tv/character/${normalizedId}`;
+  }
+
+  const query = encodeURIComponent(name.trim());
+  return `https://bgm.tv/search/mono_character/${query}`;
+}
+
+function toBangumiPersonLink(subjectId: string | undefined, name: string): string {
+  const normalizedId = String(subjectId || "").trim();
+  if (/^\d+$/.test(normalizedId)) {
+    return `https://bgm.tv/person/${normalizedId}`;
+  }
+
+  const query = encodeURIComponent(name.trim());
+  return `https://bgm.tv/search/mono_person/${query}`;
+}
+
 function toTmdbTvLink(subjectId: string | undefined, name: string): string {
   const normalizedId = String(subjectId || "").trim();
   if (/^\d+$/.test(normalizedId)) {
@@ -134,6 +154,12 @@ function toSubjectLink(kind: SubjectKind, subjectId: string | undefined, name: s
   }
   if (kind === "movie") {
     return toTmdbMovieLink(subjectId, name);
+  }
+  if (kind === "character") {
+    return toBangumiCharacterLink(subjectId, name);
+  }
+  if (kind === "person") {
+    return toBangumiPersonLink(subjectId, name);
   }
   return toBangumiLink(subjectId, name);
 }
