@@ -627,8 +627,8 @@ export default function TrendsClientPage({
             返回主页面
           </Link>
 
-          <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="space-y-1">
+          <div className="mt-4 flex flex-wrap flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-1 flex-shrink-0">
               <h1 className="text-3xl font-bold tracking-tight text-foreground">大家的构成</h1>
               <p className="text-sm text-muted-foreground">{topCardSummary}</p>
               <p className="text-xs text-amber-600 dark:text-amber-400">
@@ -642,7 +642,7 @@ export default function TrendsClientPage({
               <p className="text-xs text-muted-foreground">最后更新：{formatDateTime(data?.lastUpdatedAt ?? null)}</p>
             </div>
 
-            <div className="mt-auto flex flex-col items-end space-y-2">
+            <div className="mt-auto flex flex-col items-end space-y-2 ml-auto">
               <div className="self-end md:hidden">
                 <button
                   type="button"
