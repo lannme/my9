@@ -4,7 +4,8 @@ import { searchItunesAlbum, searchItunesSong } from "@/lib/itunes/search";
 import { ShareSubject, SubjectSearchResponse } from "@/lib/share/types";
 
 const WORK_SEARCH_LIMIT = 20;
-const SOURCE_TIMEOUT_MS = 2200;
+// Keep a very long timeout so each upstream source has enough time to respond.
+const SOURCE_TIMEOUT_MS = 5 * 60 * 1000;
 
 type WorkSourceKey = "bangumi" | "tmdb:movie" | "tmdb:tv" | "itunes:song" | "itunes:album";
 
@@ -293,32 +294,12 @@ export async function searchWorkSubjects(params: {
     },
   ];
 
-  const settled = await Promise.allSettled(
+  const allResults = await Promise.all(
     sources.map(async ({ source, task }) => ({
       source,
       items: await task,
     }))
   );
 
-  const successful: Array<{ source: WorkSourceKey; items: ShareSubject[] }> = [];
-  let failedCount = 0;
-
-  for (const result of settled) {
-    if (result.status === "fulfilled") {
-      successful.push(result.value);
-      continue;
-    }
-    failedCount += 1;
-    console.warn(
-      `[work-search] source failed: ${
-        result.reason instanceof Error ? result.reason.message : String(result.reason)
-      }`
-    );
-  }
-
-  if (successful.length === 0 && failedCount > 0) {
-    throw new Error("work search failed");
-  }
-
-  return mergeWorkItems(q, successful);
+  return mergeWorkItems(q, allResults);
 }
