@@ -45,6 +45,10 @@ function displayName(game: ShareGame) {
   return game.localizedName?.trim() || game.name;
 }
 
+function shouldTopCropCover(kind: SubjectKind) {
+  return kind === "character" || kind === "person";
+}
+
 function getNoResultHint(kind: SubjectKind, subjectLabel: string): string {
   if (kind === "song" || kind === "album") {
     return "尝试歌手名 + 歌曲/专辑名进行搜索";
@@ -228,7 +232,7 @@ export function SearchDialog({
                         src={game.cover}
                         alt={displayName(game)}
                         fill
-                        className="object-cover"
+                        className={cn("object-cover", shouldTopCropCover(kind) && "object-top")}
                         sizes="(max-width: 768px) 40vw, 20vw"
                         loading="lazy"
                       />

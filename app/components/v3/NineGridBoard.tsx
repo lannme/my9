@@ -7,11 +7,13 @@ import { Feedback, AutoScroller, Cursor } from '@dnd-kit/dom';
 import { useSortable, isSortable } from "@dnd-kit/react/sortable";
 import { arrayMove } from "@dnd-kit/helpers";
 import { ShareGame } from "@/lib/share/types";
+import { SubjectKind } from "@/lib/subject-kind";
 import { cn } from "@/lib/utils";
 
 interface NineGridBoardProps {
   games: Array<ShareGame | null>;
   subjectLabel: string;
+  kind?: SubjectKind;
   readOnly?: boolean;
   onSelectSlot?: (index: number) => void;
   onRemoveSlot?: (index: number) => void;
@@ -44,6 +46,7 @@ interface GridCellProps {
   game: ShareGame | null;
   index: number;
   subjectLabel: string;
+  kind?: SubjectKind;
   readOnly?: boolean;
   isDragSource?: boolean;
   onSelectSlot?: (index: number) => void;
@@ -51,10 +54,15 @@ interface GridCellProps {
   onOpenComment?: (index: number) => void;
 }
 
+function shouldTopCropCover(kind?: SubjectKind) {
+  return kind === "character" || kind === "person";
+}
+
 function GridCell({
   game,
   index,
   subjectLabel,
+  kind,
   readOnly,
   isDragSource,
   onSelectSlot,
@@ -90,7 +98,10 @@ function GridCell({
             alt={displayTitle(game)}
             fill
             unoptimized
-            className="absolute inset-0 object-cover select-none [-webkit-touch-callout:none]"
+            className={cn(
+              "absolute inset-0 object-cover select-none [-webkit-touch-callout:none]",
+              shouldTopCropCover(kind) && "object-top"
+            )}
             sizes="(max-width: 640px) 30vw, (max-width: 1024px) 22vw, 180px"
           />
         ) : (
@@ -138,6 +149,7 @@ function GridCell({
 export function NineGridBoard({
   games,
   subjectLabel,
+  kind,
   readOnly,
   onSelectSlot,
   onRemoveSlot,
@@ -156,6 +168,7 @@ export function NineGridBoard({
                 game={game}
                 index={index}
                 subjectLabel={subjectLabel}
+                kind={kind}
                 readOnly
               />
             </div>
@@ -174,6 +187,7 @@ export function NineGridBoard({
                 game={game}
                 index={index}
                 subjectLabel={subjectLabel}
+                kind={kind}
                 isDragSource={isDragSource}
                 onSelectSlot={onSelectSlot}
                 onRemoveSlot={onRemoveSlot}

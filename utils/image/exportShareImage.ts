@@ -87,14 +87,19 @@ function drawCoverFit(
   x: number,
   y: number,
   width: number,
-  height: number
+  height: number,
+  options?: { alignTop?: boolean }
 ) {
   const scale = Math.max(width / image.width, height / image.height);
   const drawWidth = image.width * scale;
   const drawHeight = image.height * scale;
   const offsetX = x + (width - drawWidth) / 2;
-  const offsetY = y + (height - drawHeight) / 2;
+  const offsetY = options?.alignTop ? y : y + (height - drawHeight) / 2;
   ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
+}
+
+function shouldTopCropCover(kind?: SubjectKind) {
+  return kind === "character" || kind === "person";
 }
 
 function drawEmptySlot(
@@ -206,6 +211,7 @@ function drawBoardPanel(ctx: CanvasRenderingContext2D, panelHeight: number) {
 
 function drawGrid(
   ctx: CanvasRenderingContext2D,
+  kind: SubjectKind | undefined,
   games: Array<ShareGame | null>,
   covers: Array<HTMLImageElement | null>,
   showNames: boolean
@@ -237,7 +243,9 @@ function drawGrid(
     ctx.clip();
     const cover = covers[index];
     if (cover) {
-      drawCoverFit(ctx, cover, x, y, slotWidth, slotHeight);
+      drawCoverFit(ctx, cover, x, y, slotWidth, slotHeight, {
+        alignTop: shouldTopCropCover(kind),
+      });
     } else {
       drawEmptySlot(ctx, x, y, slotWidth, slotHeight);
     }
@@ -267,12 +275,13 @@ function drawGrid(
 }
 
 async function createBoardCanvas(options: {
+  kind?: SubjectKind;
   games: Array<ShareGame | null>;
   totalHeight: number;
   panelHeight: number;
   showNames: boolean;
 }) {
-  const { games, totalHeight, panelHeight, showNames } = options;
+  const { kind, games, totalHeight, panelHeight, showNames } = options;
   const covers = await loadCovers(games);
 
   const canvas = document.createElement("canvas");
@@ -286,17 +295,19 @@ async function createBoardCanvas(options: {
 
   drawPageBackground(ctx, totalHeight);
   drawBoardPanel(ctx, panelHeight);
-  drawGrid(ctx, games, covers, showNames);
+  drawGrid(ctx, kind, games, covers, showNames);
 
   return canvas;
 }
 
 export async function generateStandardShareImageBlob(options: {
+  kind?: SubjectKind;
   games: Array<ShareGame | null>;
   creatorName?: string | null;
   showNames?: boolean;
 }) {
   const canvas = await createBoardCanvas({
+    kind: options.kind,
     games: options.games,
     totalHeight: CANVAS_HEIGHT,
     panelHeight: BASE_PANEL_HEIGHT,
@@ -318,6 +329,7 @@ export async function generateEnhancedShareImageBlob(options: {
   const shareUrl = `${origin}/${options.kind}/s/${options.shareId}`;
 
   const canvas = await createBoardCanvas({
+    kind: options.kind,
     games: options.games,
     totalHeight: CANVAS_HEIGHT + ENHANCED_EXTRA_HEIGHT,
     panelHeight: BASE_PANEL_HEIGHT + ENHANCED_EXTRA_HEIGHT,
@@ -407,6 +419,6 @@ export async function exportEnhancedShareImage(options: {
   showNames?: boolean;
 }) {
   const blob = await generateEnhancedShareImageBlob(options);
-  const fileName = `${options.title || "构成我的九部"}.png`;
+  const fileName = `${options.title}.png`;
   downloadBlob(blob, fileName);
 }

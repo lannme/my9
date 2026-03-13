@@ -195,6 +195,7 @@ export default function My9ReadonlyApp({
             <NineGridBoard
               games={games}
               subjectLabel={kindMeta.label}
+              kind={kind}
               readOnly
             />
           </div>

@@ -1,17 +1,24 @@
 import Image from "next/image";
 import { Plus } from "lucide-react";
 import { ShareGame } from "@/lib/share/types";
+import { SubjectKind } from "@/lib/subject-kind";
+import { cn } from "@/lib/utils";
 
 interface ReadonlyNineGridBoardProps {
   games: Array<ShareGame | null>;
   subjectLabel: string;
+  kind?: SubjectKind;
 }
 
 function displayTitle(game: ShareGame) {
   return game.localizedName?.trim() || game.name;
 }
 
-export function ReadonlyNineGridBoard({ games, subjectLabel }: ReadonlyNineGridBoardProps) {
+function shouldTopCropCover(kind?: SubjectKind) {
+  return kind === "character" || kind === "person";
+}
+
+export function ReadonlyNineGridBoard({ games, subjectLabel, kind }: ReadonlyNineGridBoardProps) {
   return (
     <div className="w-full grid grid-cols-3 gap-2 sm:gap-3">
       {games.map((game, index) => {
@@ -25,7 +32,10 @@ export function ReadonlyNineGridBoard({ games, subjectLabel }: ReadonlyNineGridB
                   alt={displayTitle(game)}
                   fill
                   unoptimized
-                  className="absolute inset-0 object-cover select-none [-webkit-touch-callout:none]"
+                  className={cn(
+                    "absolute inset-0 object-cover select-none [-webkit-touch-callout:none]",
+                    shouldTopCropCover(kind) && "object-top"
+                  )}
                   sizes="(max-width: 640px) 30vw, (max-width: 1024px) 22vw, 180px"
                 />
               ) : (

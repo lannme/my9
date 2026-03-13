@@ -58,7 +58,7 @@ export default function My9ReadonlyPage({ kind, shareId, initialShareData }: My9
         </div>
 
         <div className="mx-auto w-full rounded-xl border-4 border-background bg-card p-1 shadow-2xl ring-1 ring-border/70 sm:p-4">
-          <ReadonlyNineGridBoard games={games} subjectLabel={kindMeta.label} />
+          <ReadonlyNineGridBoard games={games} subjectLabel={kindMeta.label} kind={kind} />
         </div>
 
         <div className="flex w-full flex-col items-center gap-3">

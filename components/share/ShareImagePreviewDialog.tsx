@@ -32,8 +32,9 @@ interface ShareImagePreviewDialogProps {
   onNotice: (kind: NoticeKind, message: string) => void;
 }
 
-function buildFileName(title: string) {
-  return `${title || "构成我的九部"}.png`;
+function buildFileName(kind: SubjectKind, title: string) {
+  const fileName = `${title}.png`;
+  return fileName;
 }
 
 export function ShareImagePreviewDialog({
@@ -97,7 +98,7 @@ export function ShareImagePreviewDialog({
               creatorName,
               showNames,
             })
-          : await generateStandardShareImageBlob({ games, creatorName, showNames });
+          : await generateStandardShareImageBlob({ kind, games, creatorName, showNames });
 
         if (requestId !== requestIdRef.current) return;
         const nextUrl = URL.createObjectURL(blob);
@@ -139,8 +140,8 @@ export function ShareImagePreviewDialog({
               creatorName,
               showNames,
             })
-          : await generateStandardShareImageBlob({ games, creatorName, showNames }));
-      downloadBlob(blob, buildFileName(title));
+          : await generateStandardShareImageBlob({ kind, games, creatorName, showNames }));
+      downloadBlob(blob, buildFileName(kind, title));
     } catch {
       onNotice("info", "下载失败，请长按预览图保存");
     }

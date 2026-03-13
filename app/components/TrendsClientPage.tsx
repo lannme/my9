@@ -100,6 +100,14 @@ function toBangumiLink(subjectId: string | undefined, name: string): string {
   return `https://bgm.tv/subject_search/${query}`;
 }
 
+function toBangumiCharacterLink(subjectId: string | undefined): string {
+  return `https://bgm.tv/character/${String(subjectId || "").trim()}`;
+}
+
+function toBangumiPersonLink(subjectId: string | undefined): string {
+  return `https://bgm.tv/person/${String(subjectId || "").trim()}`;
+}
+
 function toTmdbTvLink(subjectId: string | undefined, name: string): string {
   const normalizedId = String(subjectId || "").trim();
   if (/^\d+$/.test(normalizedId)) {
@@ -135,6 +143,12 @@ function toSubjectLink(kind: SubjectKind, subjectId: string | undefined, name: s
   if (kind === "movie") {
     return toTmdbMovieLink(subjectId, name);
   }
+  if (kind === "character") {
+    return toBangumiCharacterLink(subjectId);
+  }
+  if (kind === "person") {
+    return toBangumiPersonLink(subjectId);
+  }
   return toBangumiLink(subjectId, name);
 }
 
@@ -146,6 +160,10 @@ function subjectSourceLabel(kind: SubjectKind): string {
     return "TMDB";
   }
   return "Bangumi";
+}
+
+function shouldTopCropCover(kind: SubjectKind) {
+  return kind === "character" || kind === "person";
 }
 
 function toTrendsCoverUrl(cover: string | null | undefined): string | null {
@@ -293,7 +311,7 @@ function TrendGameMiniCard({ kind, rank, game, count, tagLabel, showReleaseYear 
                     width={48}
                     height={64}
                     unoptimized
-                    className="h-full w-full object-cover"
+                    className={cn("h-full w-full object-cover", shouldTopCropCover(kind) && "object-top")}
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-[10px] text-muted-foreground">无图</div>

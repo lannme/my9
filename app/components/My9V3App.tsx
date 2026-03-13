@@ -763,6 +763,7 @@ export default function My9V3App({
             <NineGridBoard
               games={games}
               subjectLabel={kindMeta.label}
+              kind={kind}
               readOnly={isReadonly}
               onSelectSlot={openSearch}
               onRemoveSlot={(index) => {
