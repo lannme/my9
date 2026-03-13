@@ -32,6 +32,13 @@ type ItunesCollectionResult = {
   collectionViewUrl?: string;
 };
 
+type ItunesSearchResult = ItunesTrackResult | ItunesCollectionResult;
+
+export type ItunesMixedSearchResult = {
+  songs: ShareSubject[];
+  albums: ShareSubject[];
+};
+
 function extractYear(raw?: string | null): number | undefined {
   if (!raw) return undefined;
   const year = Number.parseInt(raw.slice(0, 4), 10);
@@ -102,16 +109,41 @@ function toShareAlbumSubject(result: ItunesCollectionResult): ShareSubject {
   };
 }
 
+function isItunesTrackResult(value: ItunesSearchResult): value is ItunesTrackResult {
+  const maybe = value as Partial<ItunesTrackResult>;
+  return (
+    value.wrapperType === "track" &&
+    typeof maybe.artistName === "string" &&
+    typeof maybe.trackName === "string"
+  );
+}
+
+function isItunesCollectionResult(value: ItunesSearchResult): value is ItunesCollectionResult {
+  const maybe = value as Partial<ItunesCollectionResult>;
+  return (
+    value.wrapperType === "collection" &&
+    typeof maybe.collectionId === "number" &&
+    Number.isFinite(maybe.collectionId) &&
+    typeof maybe.artistName === "string" &&
+    typeof maybe.collectionName === "string"
+  );
+}
+
 async function fetchItunesSearch<T>(
   term: string,
-  entity: "musicTrack" | "album"
+  options?: {
+    entity?: "musicTrack" | "album";
+    limit?: number;
+  }
 ): Promise<T[]> {
   const url = new URL(`${ITUNES_API_BASE_URL}/search`);
   url.searchParams.set("term", term);
   url.searchParams.set("media", "music");
-  url.searchParams.set("entity", entity);
+  if (options?.entity) {
+    url.searchParams.set("entity", options.entity);
+  }
   url.searchParams.set("country", "cn"); // Default to China region for better local results
-  url.searchParams.set("limit", "20");
+  url.searchParams.set("limit", String(options?.limit ?? 20));
 
   const response = await fetch(url.toString(), {
     method: "GET",
@@ -213,7 +245,10 @@ export async function searchItunesSong(params: {
   const q = query.trim();
   if (!q) return [];
 
-  const results = await fetchItunesSearch<ItunesTrackResult>(q, "musicTrack");
+  const results = await fetchItunesSearch<ItunesTrackResult>(q, {
+    entity: "musicTrack",
+    limit: 20,
+  });
   return results
     .filter((r) => r.wrapperType === "track")
     .map(toShareSongSubject)
@@ -228,6 +263,47 @@ export async function searchItunesAlbum(params: {
   const q = query.trim();
   if (!q) return [];
 
-  const results = await fetchItunesSearch<ItunesCollectionResult>(q, "album");
+  const results = await fetchItunesSearch<ItunesCollectionResult>(q, {
+    entity: "album",
+    limit: 20,
+  });
   return results.filter(r => r.wrapperType === "collection").map(toShareAlbumSubject);
+}
+
+export async function searchItunesMixed(params: {
+  query: string;
+}): Promise<ItunesMixedSearchResult> {
+  const { query } = params;
+  const q = query.trim();
+  if (!q) {
+    return {
+      songs: [],
+      albums: [],
+    };
+  }
+
+  const results = await fetchItunesSearch<ItunesSearchResult>(q, {
+    limit: 40,
+  });
+
+  const songs: ShareSubject[] = [];
+  const albums: ShareSubject[] = [];
+
+  for (const result of results) {
+    if (isItunesTrackResult(result)) {
+      const song = toShareSongSubject(result);
+      if (song) {
+        songs.push(song);
+      }
+      continue;
+    }
+    if (isItunesCollectionResult(result)) {
+      albums.push(toShareAlbumSubject(result));
+    }
+  }
+
+  return {
+    songs,
+    albums,
+  };
 }
