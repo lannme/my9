@@ -51,13 +51,28 @@ function enhanceArtworkUrl(url?: string | null): string | null {
   return url.replace("100x100bb", "1000x1000bb");
 }
 
-function toShareSongSubject(result: ItunesTrackResult): ShareSubject {
+function resolveSongSubjectId(result: ItunesTrackResult): number | null {
+  if (typeof result.trackId === "number" && Number.isFinite(result.trackId)) {
+    return result.trackId;
+  }
+  if (typeof result.collectionId === "number" && Number.isFinite(result.collectionId)) {
+    return result.collectionId;
+  }
+  return null;
+}
+
+function toShareSongSubject(result: ItunesTrackResult): ShareSubject | null {
+  const id = resolveSongSubjectId(result);
+  if (id === null) {
+    return null;
+  }
+
   const cover = enhanceArtworkUrl(result.artworkUrl100);
   const releaseYear = extractYear(result.releaseDate);
   const genres = result.primaryGenreName ? [result.primaryGenreName] : [];
 
   return {
-    id: result.trackId || result.collectionId || Math.random(),
+    id,
     name: result.artistName, // Name 原本项目组件在副标题展示，用于显示歌手
     localizedName: result.trackName, // LocalizedName 原本组件做大标题展示，用于显示歌名
     cover,
@@ -199,7 +214,10 @@ export async function searchItunesSong(params: {
   if (!q) return [];
 
   const results = await fetchItunesSearch<ItunesTrackResult>(q, "musicTrack");
-  return results.filter(r => r.wrapperType === "track").map(toShareSongSubject);
+  return results
+    .filter((r) => r.wrapperType === "track")
+    .map(toShareSongSubject)
+    .filter((item): item is ShareSubject => item !== null);
 }
 
 export async function searchItunesAlbum(params: {
