@@ -163,10 +163,11 @@ export function SupportButton() {
             />
           </div>
         ) : (
-          <p className="mt-3 text-left text-sm text-muted-foreground">
-            暂未配置微信赞赏码。请在 <code>.env.local</code> 设置
-            <code> NEXT_PUBLIC_WECHAT_PAY_QR_URL</code>。
-          </p>
+            <img
+              src={fallbackWechatPayQrUrl}
+              alt="微信赞赏码"
+              className="h-48 w-48 rounded-lg border border-border object-contain md:h-60 md:w-60"
+            />
         )}
         <section className="mt-5 border-t border-border pt-4">
           <h3 className="text-sm font-semibold text-foreground">鸣谢名单</h3>
