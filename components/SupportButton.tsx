@@ -17,6 +17,9 @@ const donationAcknowledgements: Array<{
   amount: string;
   message: string;
 }> = [
+  { date: "2026-03-14", name: "陌离ﾟ", amount: "0.88", message: "" },
+  { date: "2026-03-14", name: "*偷摸亲(｡•́__ก̀｡)*", amount: "20", message: "感谢制作(≧∀≦)ゞ🎉" },
+  { date: "2026-03-14", name: "汐", amount: "20", message: "老大老大真的不能自定义图片吗喵" },
   { date: "2026-03-14", name: "惊蟄正中央｡:.ﾟ", amount: "3", message: "辛苦了！" },
   { date: "2026-03-14", name: "夷蹴而就", amount: "50", message: "成功的经营，希望有gal专项" },
   { date: "2026-03-14", name: "黛雪若兮", amount: "20", message: "感谢制作，希望有更多的书籍，专辑，电影！祝你开心^_^" },
