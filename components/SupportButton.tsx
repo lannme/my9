@@ -17,6 +17,10 @@ const donationAcknowledgements: Array<{
   amount: string;
   message: string;
 }> = [
+  { date: "2026-03-14", name: "匿名", amount: "0.5", message: "" },
+  { date: "2026-03-14", name: "匿名", amount: "10", message: "有点走马灯了" },
+  { date: "2026-03-14", name: "我要看かぐや！", amount: "3", message: "这样对大家分享喜爱的事物或许也不错呢" },
+  { date: "2026-03-14", name: "海月", amount: "3", message: "加油哦！" },
   { date: "2026-03-14", name: "陌离ﾟ", amount: "0.88", message: "" },
   { date: "2026-03-14", name: "*偷摸亲(｡•́__ก̀｡)*", amount: "20", message: "感谢制作(≧∀≦)ゞ🎉" },
   { date: "2026-03-14", name: "汐", amount: "20", message: "老大老大真的不能自定义图片吗喵" },

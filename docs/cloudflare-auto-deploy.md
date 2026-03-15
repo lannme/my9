@@ -16,11 +16,16 @@
 
 - `CLOUDFLARE_ACCOUNT_ID`
 - `CLOUDFLARE_API_TOKEN`
+- `NEXT_PUBLIC_GA_ID`
+- `NEXT_PUBLIC_TALLY_FORM_URL`
+- `NEXT_PUBLIC_FEEDBACK_TALLY_URL`（可选）
+- `NEXT_PUBLIC_WECHAT_PAY_QR_URL`
 
 说明：
 
 - 当前运行时 secrets 已存储在 Cloudflare Worker 中，GitHub Actions 只负责构建和部署。
 - 生产与测试部署共用同一组 Cloudflare 凭据，但分别调用不同的 npm script。
+- `NEXT_PUBLIC_*` 这类前端公开变量会在构建时写入产物，因此也必须在 GitHub Actions 中提供；仅写入 Cloudflare Worker secret 不足以影响已构建的前端页面。
 
 ## 部署命令
 

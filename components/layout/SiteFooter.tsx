@@ -41,6 +41,54 @@ export function SiteFooter({ className, kind }: SiteFooterProps) {
   const isWorkKind = kind === "work";
   const isTmdbKind = kind === "tv" || kind === "movie";
   const isAppleMusicKind = kind === "song" || kind === "album";
+  const sourceLink = isWorkKind ? (
+    <>
+      <a
+        href="https://bangumi.tv/"
+        target="_blank"
+        rel="noreferrer"
+        className="font-semibold text-sky-600 hover:underline"
+      >
+        Bangumi
+      </a>
+      <span aria-hidden="true">+</span>
+      <a
+        href="https://www.themoviedb.org/"
+        target="_blank"
+        rel="noreferrer"
+        className="font-semibold text-sky-600 hover:underline"
+      >
+        TMDB
+      </a>
+    </>
+  ) : isTmdbKind ? (
+    <a
+      href="https://www.themoviedb.org/"
+      target="_blank"
+      rel="noreferrer"
+      className="font-semibold text-sky-600 hover:underline"
+    >
+      TMDB
+    </a>
+  ) : isAppleMusicKind ? (
+    <a
+      href="https://music.apple.com/"
+      target="_blank"
+      rel="noreferrer"
+      className="font-semibold text-sky-600 hover:underline"
+    >
+      Apple Music
+    </a>
+  ) : (
+    <a
+      href="https://bangumi.tv/"
+      target="_blank"
+      rel="noreferrer"
+      className="font-semibold text-sky-600 hover:underline"
+    >
+      Bangumi
+    </a>
+  );
 
   return (
     <footer
@@ -49,66 +97,10 @@ export function SiteFooter({ className, kind }: SiteFooterProps) {
         className
       )}
     >
-      <p>
-        由{" "}
-        {isWorkKind ? (
-          <>
-            <a
-              href="https://bangumi.tv/"
-              target="_blank"
-              rel="noreferrer"
-              className="font-semibold text-sky-600 hover:underline"
-            >
-              Bangumi
-            </a>
-            {" + "}
-            <a
-              href="https://www.themoviedb.org/"
-              target="_blank"
-              rel="noreferrer"
-              className="font-semibold text-sky-600 hover:underline"
-            >
-              TMDB
-            </a>
-            {/* {" + "}
-            <a
-              href="https://music.apple.com/"
-              target="_blank"
-              rel="noreferrer"
-              className="font-semibold text-sky-600 hover:underline"
-            >
-              Apple Music
-            </a> */}
-          </>
-        ) : isTmdbKind ? (
-          <a
-            href="https://www.themoviedb.org/"
-            target="_blank"
-            rel="noreferrer"
-            className="font-semibold text-sky-600 hover:underline"
-          >
-            TMDB
-          </a>
-        ) : isAppleMusicKind ? (
-          <a
-            href="https://music.apple.com/"
-            target="_blank"
-            rel="noreferrer"
-            className="font-semibold text-sky-600 hover:underline"
-          >
-            Apple Music
-          </a>
-        ) : (
-          <a
-            href="https://bangumi.tv/"
-            target="_blank"
-            rel="noreferrer"
-            className="font-semibold text-sky-600 hover:underline"
-          >
-            Bangumi
-          </a>
-        )}
-        {" "}强力驱动
+      <p className="inline-flex flex-wrap items-center justify-center gap-1">
+        <span>由</span>
+        {sourceLink}
+        <span>强力驱动</span>
       </p>
       <p className="mt-2">
         开发者：苍旻白轮
