@@ -1,4 +1,5 @@
 import { handleBangumiSearchRequest } from "@/lib/bangumi/route";
+import { handleBggSearchRequest } from "@/lib/bgg/route";
 import { handleTmdbSearchRequest } from "@/lib/tmdb/route";
 import { handleItunesSearchRequest } from "@/lib/itunes/route";
 import { handleWorkSearchRequest } from "@/lib/work/route";
@@ -9,6 +10,7 @@ const TMDB_KINDS = new Set(["tv", "movie"]);
 
 // 使用 iTunes 作为数据源的 kind 集合
 const ITUNES_KINDS = new Set(["song", "album"]);
+const BGG_KINDS = new Set(["boardgame"]);
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -22,6 +24,9 @@ export async function GET(request: Request) {
   }
   if (kind && ITUNES_KINDS.has(kind)) {
     return handleItunesSearchRequest(request);
+  }
+  if (kind && BGG_KINDS.has(kind)) {
+    return handleBggSearchRequest(request);
   }
   return handleBangumiSearchRequest(request);
 }

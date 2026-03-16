@@ -11,6 +11,7 @@ import { SubjectKindIcon } from "@/components/subject/SubjectKindIcon";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SupportButton } from "@/components/SupportButton";
 import {
+  DEFAULT_SUBJECT_KIND,
   SubjectKind,
   SUBJECT_KIND_ORDER,
   getSubjectKindMeta,
@@ -71,7 +72,7 @@ const YEAR_PAGE_OPTIONS: Array<{ value: TrendYearPage; label: string }> = [
   { value: "recent", label: "现代" },
   { value: "legacy", label: "经典" },
 ];
-const DEFAULT_TREND_KIND: SubjectKind = "game";
+const DEFAULT_TREND_KIND: SubjectKind = DEFAULT_SUBJECT_KIND;
 const DEFAULT_TREND_PERIOD: TrendPeriod = "24h";
 const DEFAULT_TREND_VIEW: TrendView = "overall";
 const DEFAULT_TREND_OVERALL_PAGE = 1;
@@ -420,6 +421,7 @@ export default function TrendsClientPage({
   const isCurrentKindOverallOnly = isOverallOnlyKind(kind);
   const requestOverallPage = view === "overall" ? overallPage : 1;
   const requestYearPage: TrendYearPage = view === "year" ? yearPage : "recent";
+  const kindSwitchable = SUBJECT_KIND_ORDER.length > 1;
 
   useEffect(() => {
     setKind(urlState.kind);
@@ -675,45 +677,49 @@ export default function TrendsClientPage({
             </div>
 
             <div className="mt-auto flex flex-col items-end space-y-2 ml-auto">
-              <div className="self-end md:hidden">
-                <button
-                  type="button"
-                  onClick={() => setKindPickerOpen(true)}
-                  className="inline-flex h-8 items-center justify-center gap-1.5 rounded-full border border-border bg-card px-2.5 text-xs font-semibold text-card-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                  aria-label="切换观测类别"
-                >
-                  <SubjectKindIcon kind={kind} className="h-3.5 w-3.5" />
-                  {getSubjectKindMeta(kind).label}
-                  <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />
-                </button>
-              </div>
-
-              <div ref={kindTabsScrollerRef} className="hidden w-full max-w-full overflow-x-auto md:block">
-                <div className="inline-flex min-w-max overflow-hidden rounded-full border border-border bg-card">
-                  {SUBJECT_KIND_ORDER.map((option) => {
-                    const optionMeta = getSubjectKindMeta(option);
-                    return (
-                      <button
-                        key={option}
-                        type="button"
-                        ref={(element) => {
-                          kindTabRefs.current[option] = element;
-                        }}
-                        className={cn(
-                          "inline-flex h-8 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap border-l border-border px-2.5 text-xs font-semibold transition-colors first:border-l-0",
-                          option === kind
-                            ? "bg-foreground text-background"
-                            : "bg-card text-card-foreground hover:bg-accent hover:text-accent-foreground"
-                        )}
-                        onClick={() => switchKind(option)}
-                      >
-                        <SubjectKindIcon kind={option} className="h-3.5 w-3.5" />
-                        {optionMeta.label}
-                      </button>
-                    );
-                  })}
+              {kindSwitchable ? (
+                <div className="self-end md:hidden">
+                  <button
+                    type="button"
+                    onClick={() => setKindPickerOpen(true)}
+                    className="inline-flex h-8 items-center justify-center gap-1.5 rounded-full border border-border bg-card px-2.5 text-xs font-semibold text-card-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                    aria-label="切换观测类别"
+                  >
+                    <SubjectKindIcon kind={kind} className="h-3.5 w-3.5" />
+                    {getSubjectKindMeta(kind).label}
+                    <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />
+                  </button>
                 </div>
-              </div>
+              ) : null}
+
+              {kindSwitchable ? (
+                <div ref={kindTabsScrollerRef} className="hidden w-full max-w-full overflow-x-auto md:block">
+                  <div className="inline-flex min-w-max overflow-hidden rounded-full border border-border bg-card">
+                    {SUBJECT_KIND_ORDER.map((option) => {
+                      const optionMeta = getSubjectKindMeta(option);
+                      return (
+                        <button
+                          key={option}
+                          type="button"
+                          ref={(element) => {
+                            kindTabRefs.current[option] = element;
+                          }}
+                          className={cn(
+                            "inline-flex h-8 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap border-l border-border px-2.5 text-xs font-semibold transition-colors first:border-l-0",
+                            option === kind
+                              ? "bg-foreground text-background"
+                              : "bg-card text-card-foreground hover:bg-accent hover:text-accent-foreground"
+                          )}
+                          onClick={() => switchKind(option)}
+                        >
+                          <SubjectKindIcon kind={option} className="h-3.5 w-3.5" />
+                          {optionMeta.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
 
               <div className="self-end overflow-x-auto md:overflow-visible">
                 <div className="inline-flex overflow-hidden rounded-full border border-border bg-card">
@@ -897,34 +903,36 @@ export default function TrendsClientPage({
         <SiteFooter kind={kind} />
       </div>
 
-      <Dialog open={kindPickerOpen} onOpenChange={setKindPickerOpen}>
-        <DialogContent className="w-[86vw] max-w-[21rem] rounded-2xl p-4 sm:max-w-md sm:p-6">
-          <DialogHeader>
-            <DialogTitle>切换观测类别</DialogTitle>
-          </DialogHeader>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-2">
-            {SUBJECT_KIND_ORDER.map((item) => {
-              const meta = getSubjectKindMeta(item);
-              const active = item === kind;
-              return (
-                <Button
-                  key={item}
-                  type="button"
-                  variant="outline"
-                  onClick={() => switchKind(item)}
-                  className={cn(
-                    "h-auto justify-start gap-3 rounded-xl px-4 py-3 text-left",
-                    active && "border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-200"
-                  )}
-                >
-                  <SubjectKindIcon kind={item} className="h-4 w-4" />
-                  <span className="font-semibold">{meta.label}</span>
-                </Button>
-              );
-            })}
-          </div>
-        </DialogContent>
-      </Dialog>
+      {kindSwitchable ? (
+        <Dialog open={kindPickerOpen} onOpenChange={setKindPickerOpen}>
+          <DialogContent className="w-[86vw] max-w-[21rem] rounded-2xl p-4 sm:max-w-md sm:p-6">
+            <DialogHeader>
+              <DialogTitle>切换观测类别</DialogTitle>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-2">
+              {SUBJECT_KIND_ORDER.map((item) => {
+                const meta = getSubjectKindMeta(item);
+                const active = item === kind;
+                return (
+                  <Button
+                    key={item}
+                    type="button"
+                    variant="outline"
+                    onClick={() => switchKind(item)}
+                    className={cn(
+                      "h-auto justify-start gap-3 rounded-xl px-4 py-3 text-left",
+                      active && "border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-200"
+                    )}
+                  >
+                    <SubjectKindIcon kind={item} className="h-4 w-4" />
+                    <span className="font-semibold">{meta.label}</span>
+                  </Button>
+                );
+              })}
+            </div>
+          </DialogContent>
+        </Dialog>
+      ) : null}
 
       <button
         type="button"

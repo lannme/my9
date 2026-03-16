@@ -1,5 +1,6 @@
 export type SubjectKind =
   | "game"
+  | "boardgame"
   | "anime"
   | "tv"
   | "movie"
@@ -11,20 +12,21 @@ export type SubjectKind =
   | "character"
   | "person";
 
-export const DEFAULT_SUBJECT_KIND: SubjectKind = "game";
+export const DEFAULT_SUBJECT_KIND: SubjectKind = "boardgame";
 
 export const SUBJECT_KIND_ORDER: SubjectKind[] = [
-  "game",
-  "anime",
-  "tv",
-  "movie",
-  "manga",
-  "lightnovel",
-  "song",
-  "album",
-  "work",
-  "character",
-  "person",
+  "boardgame",
+  // "game",
+  // "anime",
+  // "tv",
+  // "movie",
+  // "manga",
+  // "lightnovel",
+  // "song",
+  // "album",
+  // "work",
+  // "character",
+  // "person",
 ];
 
 type KindSearchConfig = {
@@ -63,6 +65,19 @@ const KIND_META_MAP: Record<SubjectKind, SubjectKindMeta> = {
       typeFilter: [4],
       bangumiSearchCat: 4,
     },
+  },
+  boardgame: {
+    kind: "boardgame",
+    label: "桌游",
+    longLabel: "九款桌游",
+    selectionUnit: "款",
+    subtitle: "向世界传达你所爱的桌游。",
+    searchPlaceholder: "输入桌游名称",
+    searchDialogTitle: "搜索桌游",
+    searchIdleHint: "输入桌游名称开始搜索",
+    draftStorageKey: "my-nine-boardgame:v1",
+    trendLabel: "桌游",
+    search: {},
   },
   anime: {
     kind: "anime",

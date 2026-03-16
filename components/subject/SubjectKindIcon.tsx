@@ -13,6 +13,8 @@ export function SubjectKindIcon({
   switch (kind) {
     case "game":
       return <Gamepad2 className={className} />;
+    case "boardgame":
+      return <Gamepad2 className={className} />;
     case "anime":
       return <Tv className={className} />;
     case "tv":

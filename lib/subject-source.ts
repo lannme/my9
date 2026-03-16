@@ -12,7 +12,7 @@ type WorkSubjectNamespace =
   | { source: "tmdb"; entity: "movie" | "tv"; id: string }
   | { source: "itunes"; entity: "song" | "album"; id: string };
 
-export type SubjectSource = "bangumi" | "tmdb" | "itunes";
+export type SubjectSource = "bangumi" | "tmdb" | "itunes" | "bgg";
 
 export type SubjectLinkResolution = {
   source: SubjectSource;
@@ -122,6 +122,14 @@ function toAppleMusicLink(subject: SubjectLike): string {
   return `https://music.apple.com/${storefront}/search?term=${query}`;
 }
 
+function toBggLink(subjectId: string, fallbackName: string): string {
+  if (/^\d+$/.test(subjectId)) {
+    return `https://boardgamegeek.com/boardgame/${subjectId}`;
+  }
+  const query = encodeURIComponent(fallbackName);
+  return `https://boardgamegeek.com/geeksearch.php?action=search&objecttype=boardgame&q=${query}`;
+}
+
 function bangumiResolution(subject: SubjectLike, bangumiSearchCat?: number): SubjectLinkResolution {
   const id = normalizeSubjectId(subject.id);
   return {
@@ -148,6 +156,23 @@ function appleMusicResolution(subject: SubjectLike): SubjectLinkResolution {
   };
 }
 
+function bggResolution(subject: SubjectLike): SubjectLinkResolution {
+  const storeUrl = sanitizeHttpUrl(subject.storeUrls?.bgg);
+  if (storeUrl) {
+    return {
+      source: "bgg",
+      sourceLabel: "BGG",
+      url: storeUrl,
+    };
+  }
+  const id = normalizeSubjectId(subject.id);
+  return {
+    source: "bgg",
+    sourceLabel: "BGG",
+    url: toBggLink(id, displayName(subject)),
+  };
+}
+
 export function resolveSubjectLink(params: {
   kind?: SubjectKind;
   subject: SubjectLike;
@@ -164,6 +189,9 @@ export function resolveSubjectLink(params: {
   }
   if (kind === "movie") {
     return tmdbResolution("movie", subject);
+  }
+  if (kind === "boardgame") {
+    return bggResolution(subject);
   }
   if (kind === "character") {
     return {

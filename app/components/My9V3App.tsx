@@ -491,6 +491,8 @@ export default function My9V3App({
             ? "tmdb"
             : json.source === "itunes"
               ? "itunes"
+              : json.source === "bgg"
+                ? "bgg"
               : json.source === "mixed"
                 ? "mixed"
               : "bangumi",
@@ -700,7 +702,7 @@ export default function My9V3App({
             <h1 className="whitespace-nowrap text-3xl font-bold leading-tight tracking-tight text-foreground sm:text-4xl">
               {shareTitle}
             </h1>
-            {!isReadonly ? (
+            {!isReadonly && SUBJECT_KIND_ORDER.length > 1 ? (
               <button
                 type="button"
                 onClick={() => setKindPickerOpen(true)}
@@ -863,34 +865,36 @@ export default function My9V3App({
         onSave={saveComment}
       />
 
-      <Dialog open={kindPickerOpen} onOpenChange={setKindPickerOpen}>
-        <DialogContent className="w-[86vw] max-w-[21rem] rounded-2xl p-4 sm:max-w-md sm:p-6">
-          <DialogHeader>
-            <DialogTitle>切换填写类型</DialogTitle>
-          </DialogHeader>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-2">
-            {SUBJECT_KIND_ORDER.map((item) => {
-              const meta = getSubjectKindMeta(item);
-              const active = item === kind;
-              return (
-                <Button
-                  key={item}
-                  type="button"
-                  variant="outline"
-                  onClick={() => switchKind(item)}
-                  className={cn(
-                    "h-auto justify-start gap-3 rounded-xl px-4 py-3 text-left",
-                    active && "border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-200"
-                  )}
-                >
-                  <SubjectKindIcon kind={item} className="h-4 w-4" />
-                  <span className="font-semibold">{meta.label}</span>
-                </Button>
-              );
-            })}
-          </div>
-        </DialogContent>
-      </Dialog>
+      {!isReadonly && SUBJECT_KIND_ORDER.length > 1 ? (
+        <Dialog open={kindPickerOpen} onOpenChange={setKindPickerOpen}>
+          <DialogContent className="w-[86vw] max-w-[21rem] rounded-2xl p-4 sm:max-w-md sm:p-6">
+            <DialogHeader>
+              <DialogTitle>切换填写类型</DialogTitle>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-2">
+              {SUBJECT_KIND_ORDER.map((item) => {
+                const meta = getSubjectKindMeta(item);
+                const active = item === kind;
+                return (
+                  <Button
+                    key={item}
+                    type="button"
+                    variant="outline"
+                    onClick={() => switchKind(item)}
+                    className={cn(
+                      "h-auto justify-start gap-3 rounded-xl px-4 py-3 text-left",
+                      active && "border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-200"
+                    )}
+                  >
+                    <SubjectKindIcon kind={item} className="h-4 w-4" />
+                    <span className="font-semibold">{meta.label}</span>
+                  </Button>
+                );
+              })}
+            </div>
+          </DialogContent>
+        </Dialog>
+      ) : null}
     </main>
   );
 }
