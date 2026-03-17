@@ -1,0 +1,35 @@
+{
+  "meta": {
+    "siteTitle": "My Nine Works",
+    "siteDescription": "Pick 9 works that represent you and share your “My Nine Works” page."
+  },
+  "common": {
+    "language": "Language",
+    "switchToEnglish": "English",
+    "switchToChinese": "中文",
+    "backHome": "Back to home"
+  },
+  "home": {
+    "pageTitle": "My Nine Board Games",
+    "start": "Start"
+  },
+  "footer": {
+    "poweredByPrefix": "Powered by",
+    "poweredBySuffix": "",
+    "developer": "Developer: Somia WhiteRing",
+    "feedback": "Feedback",
+    "feedbackTitle": "Feedback",
+    "feedbackDescription": "Tally feedback form",
+    "tallyNotConfigured": "Tally form is not configured. Set NEXT_PUBLIC_TALLY_FORM_URL in .env.local."
+  },
+  "trends": {
+    "backToMain": "Back"
+  },
+  "readonly": {
+    "viewTrends": "Trends",
+    "readonlyBadge": "Read-only share page",
+    "creatorLabel": "Creator:",
+    "anonymous": "Anonymous",
+    "goToEditor": "Go to editor"
+  }
+}

@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter } from "@/i18n/navigation";
 import { ChevronRight, ChevronsUpDown } from "lucide-react";
+import { useLocale } from "next-intl";
 import { Input } from "@/components/ui/input";
 import { SharePlatformActions } from "@/components/share/SharePlatformActions";
 import { SiteFooter } from "@/components/layout/SiteFooter";
@@ -20,7 +21,7 @@ import {
   SUBJECT_KIND_ORDER,
   SubjectKind,
   getSubjectKindMeta,
-  getSubjectKindShareTitle,
+  getSubjectKindShareTitleByLocale,
   parseSubjectKind,
 } from "@/lib/subject-kind";
 import { normalizeSearchQuery } from "@/lib/search/query";
@@ -202,10 +203,11 @@ export default function My9V3App({
   const filledCount = useMemo(() => games.filter((item) => item !== null).length, [games]);
   const allSelected = filledCount === 9;
   const isReadonly = readOnlyShare;
+  const locale = useLocale();
 
   const draftStorageKey = kindMeta.draftStorageKey;
   const selectionUnit = kindMeta.selectionUnit;
-  const shareTitle = getSubjectKindShareTitle(kind);
+  const shareTitle = getSubjectKindShareTitleByLocale(kind, locale === "en" ? "en" : "zh");
   function ensureSearchClientCacheHydrated() {
     if (searchClientCacheHydratedRef.current) return;
     searchClientCacheRef.current = readSearchClientCacheFromSession();
@@ -493,9 +495,9 @@ export default function My9V3App({
               ? "itunes"
               : json.source === "bgg"
                 ? "bgg"
-              : json.source === "mixed"
-                ? "mixed"
-              : "bangumi",
+                : json.source === "mixed"
+                  ? "mixed"
+                  : "bangumi",
         kind,
         items: Array.isArray(json.items) ? json.items : [],
         noResultQuery: typeof json.noResultQuery === "string" ? json.noResultQuery : null,
@@ -724,7 +726,7 @@ export default function My9V3App({
             <ChevronRight className="h-4 w-4 text-sky-500 dark:text-sky-300" aria-hidden="true" />
           </button>
           <p className="text-sm text-amber-600 dark:text-amber-400">{/* 还没想好要做什么…… */}</p>
-          <SupportButton/>
+          <SupportButton />
         </header>
 
         {toast ? (

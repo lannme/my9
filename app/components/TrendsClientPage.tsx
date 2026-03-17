@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ArrowUp, ChevronsUpDown, Globe } from "lucide-react";
@@ -10,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { SubjectKindIcon } from "@/components/subject/SubjectKindIcon";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SupportButton } from "@/components/SupportButton";
+import { Link } from "@/i18n/navigation";
 import {
   DEFAULT_SUBJECT_KIND,
   SubjectKind,
@@ -20,6 +20,7 @@ import {
 import type { TrendGameItem, TrendResponse, TrendPeriod, TrendView, TrendYearPage } from "@/lib/share/types";
 import { resolveSubjectLink } from "@/lib/subject-source";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 
 type TrendsApiResponse = TrendResponse & { ok: boolean };
 
@@ -376,6 +377,7 @@ export default function TrendsClientPage({
   initialData = null,
   initialError = "",
 }: TrendsClientPageProps) {
+  const t = useTranslations("trends");
   const searchParams = useSearchParams();
   const searchParamsKey = searchParams.toString();
   const urlState = useMemo(() => {
@@ -658,7 +660,7 @@ export default function TrendsClientPage({
             href={`/${kind}`}
             className="inline-flex items-center rounded-full border border-border bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
           >
-            返回主页面
+            {t("backToMain")}
           </Link>
 
           <div className="mt-4 flex flex-wrap flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

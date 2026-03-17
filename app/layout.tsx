@@ -1,5 +1,7 @@
 import type React from "react";
 import type { Metadata } from "next";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
 import { getServerSiteUrl } from "@/lib/site-url";
 import "./globals.css";
@@ -22,44 +24,56 @@ const SYSTEM_THEME_INIT_SCRIPT = `
 
 const siteUrl = getServerSiteUrl();
 
-export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
-  title: "构成我的九部作品",
-  description: "挑选 9 部最能代表你的作品，生成并分享你的「构成我的九部作品」页面。",
-  alternates: {
-    canonical: "/",
-  },
-  openGraph: {
-    type: "website",
-    locale: "zh_CN",
-    title: "构成我的九部作品",
-    description: "挑选 9 部最能代表你的作品，生成并分享你的「构成我的九部作品」页面。",
-    url: "/",
-    siteName: "构成我的九部作品",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "构成我的九部作品",
-    description: "挑选 9 部最能代表你的作品，生成并分享你的「构成我的九部作品」页面。",
-  },
-  verification: {
-    google: "swtOMxSQC6Dfn-w4YtMQ3OFH4SZz00Blcd6FI0qMgJc",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  const t = await getTranslations({ locale, namespace: "meta" });
+  const title = t("siteTitle");
+  const description = t("siteDescription");
+  const ogLocale = locale === "en" ? "en_US" : "zh_CN";
 
-export default function RootLayout({
+  return {
+    metadataBase: new URL(siteUrl),
+    title,
+    description,
+    alternates: {
+      canonical: "/",
+    },
+    openGraph: {
+      type: "website",
+      locale: ogLocale,
+      title,
+      description,
+      url: "/",
+      siteName: title,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
+    verification: {
+      google: "swtOMxSQC6Dfn-w4YtMQ3OFH4SZz00Blcd6FI0qMgJc",
+    },
+  };
+}
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale();
+  const messages = await getMessages();
   return (
-    <html lang="zh-CN" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: SYSTEM_THEME_INIT_SCRIPT }} />
         <GoogleAnalytics />
       </head>
       <body>
-        {children}
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          {children}
+        </NextIntlClientProvider>
       </body>
     </html>
   );

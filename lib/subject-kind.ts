@@ -12,6 +12,8 @@ export type SubjectKind =
   | "character"
   | "person";
 
+export type AppLocale = "zh" | "en";
+
 export const DEFAULT_SUBJECT_KIND: SubjectKind = "boardgame";
 
 export const SUBJECT_KIND_ORDER: SubjectKind[] = [
@@ -229,6 +231,18 @@ export function getSubjectKindMeta(kind: SubjectKind): SubjectKindMeta {
 export function getSubjectKindShareTitle(kind: SubjectKind): string {
   const meta = getSubjectKindMeta(kind);
   return `构成我的九${meta.selectionUnit}${meta.label}`;
+}
+
+const SUBJECT_KIND_LABEL_EN: Partial<Record<SubjectKind, string>> = {
+  boardgame: "Board Games",
+};
+
+export function getSubjectKindShareTitleByLocale(kind: SubjectKind, locale: AppLocale): string {
+  if (locale !== "en") {
+    return getSubjectKindShareTitle(kind);
+  }
+  const label = SUBJECT_KIND_LABEL_EN[kind] ?? getSubjectKindMeta(kind).label;
+  return `My Nine ${label}`;
 }
 
 export function parseSubjectKind(value: string | null | undefined): SubjectKind | null {

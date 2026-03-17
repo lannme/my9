@@ -1,11 +1,12 @@
-import Link from "next/link";
+import { getLocale, getTranslations } from "next-intl/server";
 import { ChevronRight } from "lucide-react";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SharePlatformActions } from "@/components/share/SharePlatformActions";
 import { ReadonlyNineGridBoard } from "@/app/components/v3/ReadonlyNineGridBoard";
 import { ReadonlySelectedGamesList } from "@/app/components/v3/ReadonlySelectedGamesList";
-import { SubjectKind, getSubjectKindMeta, getSubjectKindShareTitle } from "@/lib/subject-kind";
+import { SubjectKind, getSubjectKindMeta, getSubjectKindShareTitleByLocale } from "@/lib/subject-kind";
 import { ShareGame } from "@/lib/share/types";
+import { Link } from "@/i18n/navigation";
 
 export type InitialReadonlyShareData = {
   shareId: string;
@@ -20,9 +21,11 @@ interface My9ReadonlyPageProps {
   initialShareData: InitialReadonlyShareData;
 }
 
-export default function My9ReadonlyPage({ kind, shareId, initialShareData }: My9ReadonlyPageProps) {
+export default async function My9ReadonlyPage({ kind, shareId, initialShareData }: My9ReadonlyPageProps) {
+  const t = await getTranslations("readonly");
+  const locale = await getLocale();
   const kindMeta = getSubjectKindMeta(kind);
-  const shareTitle = getSubjectKindShareTitle(kind);
+  const shareTitle = getSubjectKindShareTitleByLocale(kind, locale === "en" ? "en" : "zh");
   const games = initialShareData.games;
   const creatorName = initialShareData.creatorName || "";
   const finalShareId = initialShareData.shareId || shareId;
@@ -39,21 +42,23 @@ export default function My9ReadonlyPage({ kind, shareId, initialShareData }: My9
             href={`/trends?kind=${kind}`}
             className="inline-flex items-center justify-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-4 py-1.5 text-base font-semibold text-sky-700 transition-colors hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-200 dark:hover:bg-sky-900/60"
           >
-            大家的构成
+            {t("viewTrends")}
             <ChevronRight className="h-4 w-4 text-sky-500 dark:text-sky-300" aria-hidden="true" />
           </Link>
         </header>
 
         <div className="flex flex-col items-center gap-2">
           <p className="rounded-full border border-amber-200 bg-amber-50 px-4 py-1.5 text-xs font-semibold text-amber-700 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-300">
-            这是共享页面（只读）
+            {t("readonlyBadge")}
           </p>
-          <p className="text-sm text-muted-foreground">创作者: {creatorName.trim() || "匿名"}</p>
+          <p className="text-sm text-muted-foreground">
+            {t("creatorLabel")} {creatorName.trim() || t("anonymous")}
+          </p>
           <Link
             href={`/${kind}`}
             className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-5 py-2 text-sm font-bold text-card-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
           >
-            前往填写页面
+            {t("goToEditor")}
           </Link>
         </div>
 

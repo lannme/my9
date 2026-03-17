@@ -1,0 +1,35 @@
+{
+  "meta": {
+    "siteTitle": "构成我的九部作品",
+    "siteDescription": "挑选 9 部最能代表你的作品，生成并分享你的「构成我的九部作品」页面。"
+  },
+  "common": {
+    "language": "语言",
+    "switchToEnglish": "English",
+    "switchToChinese": "中文",
+    "backHome": "返回首页"
+  },
+  "home": {
+    "pageTitle": "构成我的九款桌游",
+    "start": "开始填写！"
+  },
+  "footer": {
+    "poweredByPrefix": "由",
+    "poweredBySuffix": "强力驱动",
+    "developer": "开发者：苍旻白轮",
+    "feedback": "吐槽反馈",
+    "feedbackTitle": "吐槽反馈",
+    "feedbackDescription": "Tally 反馈表单",
+    "tallyNotConfigured": "暂未配置 Tally 表单。请在 .env.local 设置 NEXT_PUBLIC_TALLY_FORM_URL。"
+  },
+  "trends": {
+    "backToMain": "返回主页面"
+  },
+  "readonly": {
+    "viewTrends": "大家的构成",
+    "readonlyBadge": "这是共享页面（只读）",
+    "creatorLabel": "创作者:",
+    "anonymous": "匿名",
+    "goToEditor": "前往填写页面"
+  }
+}

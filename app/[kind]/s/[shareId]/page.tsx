@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { notFound, permanentRedirect, redirect } from "next/navigation";
+import { getLocale } from "next-intl/server";
 import My9ReadonlyApp from "@/app/components/My9ReadonlyApp";
 import My9ReadonlyPage, { type InitialReadonlyShareData } from "@/app/components/My9ReadonlyPage";
 import { isCanonicalShareId, normalizeShareId } from "@/lib/share/id";
 import { getShare } from "@/lib/share/storage";
-import { getSubjectKindShareTitle, parseSubjectKind } from "@/lib/subject-kind";
+import { getSubjectKindShareTitleByLocale, parseSubjectKind } from "@/lib/subject-kind";
 
 type ShareReadonlyPageParams = {
   kind: string;
@@ -23,9 +24,10 @@ export async function generateMetadata({
   if (!kind) {
     return { title: "页面不存在" };
   }
+  const locale = await getLocale();
 
   return {
-    title: `${getSubjectKindShareTitle(kind)}分享页`,
+    title: `${getSubjectKindShareTitleByLocale(kind, locale === "en" ? "en" : "zh")}分享页`,
   };
 }
 
@@ -33,6 +35,8 @@ export default async function ShareReadonlyPage({
   params,
 }: ShareReadonlyPageProps) {
   const { kind: rawKind, shareId: rawShareId } = await params;
+  const locale = await getLocale();
+  const localePrefix = locale === "zh" ? "" : `/${locale}`;
   const kind = parseSubjectKind(rawKind);
   const shareId = normalizeShareId(rawShareId);
   if (!kind || !shareId) {
@@ -40,7 +44,7 @@ export default async function ShareReadonlyPage({
   }
 
   if (!isCanonicalShareId(rawShareId) || rawShareId.trim().toLowerCase() !== shareId) {
-    permanentRedirect(`/${kind}/s/${shareId}`);
+    permanentRedirect(`${localePrefix}/${kind}/s/${shareId}`);
   }
 
   let initialShareData: InitialReadonlyShareData | null = null;
@@ -50,7 +54,7 @@ export default async function ShareReadonlyPage({
     if (share) {
       const shareKind = parseSubjectKind(share.kind) ?? kind;
       if (shareKind !== kind) {
-        redirect(`/${shareKind}/s/${share.shareId}`);
+        redirect(`${localePrefix}/${shareKind}/s/${share.shareId}`);
       }
 
       initialShareData = {

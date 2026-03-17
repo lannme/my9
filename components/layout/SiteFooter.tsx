@@ -12,8 +12,10 @@ import { cn } from "@/lib/utils";
 import { FaWeibo, FaGithub } from "react-icons/fa";
 import { SiBilibili } from "react-icons/si";
 import { SupportButton } from "@/components/SupportButton";
+import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 import type { SubjectKind } from "@/lib/subject-kind";
 import { getPublicSiteUrl, getSiteHostname } from "@/lib/site-url";
+import { useTranslations } from "next-intl";
 
 interface SiteFooterProps {
   className?: string;
@@ -33,6 +35,7 @@ function buildTallyEmbedUrl(value: string): string {
 }
 
 export function SiteFooter({ className, kind }: SiteFooterProps) {
+  const t = useTranslations("footer");
   const tallyFormUrl =
     process.env.NEXT_PUBLIC_TALLY_FORM_URL?.trim();
   const tallyEmbedUrl = tallyFormUrl ? buildTallyEmbedUrl(tallyFormUrl) : "";
@@ -107,12 +110,12 @@ export function SiteFooter({ className, kind }: SiteFooterProps) {
       )}
     >
       <p className="inline-flex flex-wrap items-center justify-center gap-1">
-        <span>由</span>
+        <span>{t("poweredByPrefix")}</span>
         {sourceLink}
-        <span>强力驱动</span>
+        {t("poweredBySuffix") ? <span>{t("poweredBySuffix")}</span> : null}
       </p>
       <p className="mt-2">
-        开发者：苍旻白轮
+        {t("developer")}
       </p>
       <div className="mt-2 flex items-center justify-center gap-4">
         <a href="https://weibo.com/u/6571509464" target="_blank" rel="noreferrer" aria-label="微博" className="text-muted-foreground transition-colors hover:text-foreground">
@@ -163,31 +166,32 @@ export function SiteFooter({ className, kind }: SiteFooterProps) {
           />
         </a>
         <span aria-hidden="true">|</span>
+        <LocaleSwitcher />
+        <span aria-hidden="true">|</span>
         <Dialog>
           <DialogTrigger asChild>
             <button
               type="button"
               className="bg-transparent p-0 text-muted-foreground transition-colors hover:text-foreground hover:underline"
             >
-              吐槽反馈
+              {t("feedback")}
             </button>
           </DialogTrigger>
           <DialogContent className="w-[96vw] max-w-3xl gap-0 overflow-hidden rounded-2xl p-0">
             <DialogHeader className="sr-only">
-              <DialogTitle>吐槽反馈</DialogTitle>
-              <DialogDescription>Tally 反馈表单</DialogDescription>
+              <DialogTitle>{t("feedbackTitle")}</DialogTitle>
+              <DialogDescription>{t("feedbackDescription")}</DialogDescription>
             </DialogHeader>
             {tallyFormUrl ? (
               <iframe
                 src={tallyEmbedUrl}
-                title="Tally 反馈表单"
+                title={t("feedbackDescription")}
                 className="h-[78vh] min-h-[520px] w-full border-0"
                 loading="lazy"
               />
             ) : (
               <p className="p-6 text-sm text-muted-foreground">
-                暂未配置 Tally 表单。请在 <code>.env.local</code> 设置
-                <code> NEXT_PUBLIC_TALLY_FORM_URL</code>。
+                {t("tallyNotConfigured")}
               </p>
             )}
           </DialogContent>

@@ -1,11 +1,13 @@
-import Link from "next/link";
+import { getTranslations } from "next-intl/server";
+import { Link } from "@/i18n/navigation";
 
 interface LegalDocumentPageProps {
   title: string;
   paragraphs: string[];
 }
 
-export function LegalDocumentPage({ title, paragraphs }: LegalDocumentPageProps) {
+export async function LegalDocumentPage({ title, paragraphs }: LegalDocumentPageProps) {
+  const t = await getTranslations("common");
   return (
     <main className="min-h-screen bg-background px-4 py-10 text-foreground">
       <article className="mx-auto w-full max-w-3xl rounded-xl border border-border bg-card p-6 shadow-sm">
@@ -19,7 +21,7 @@ export function LegalDocumentPage({ title, paragraphs }: LegalDocumentPageProps)
           </p>
         ))}
         <Link href="/" className="mt-6 inline-block text-sm text-sky-700 hover:underline">
-          返回首页
+          {t("backHome")}
         </Link>
       </article>
     </main>

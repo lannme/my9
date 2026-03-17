@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { getLocale } from "next-intl/server";
 import My9V3App from "@/app/components/My9V3App";
-import { SUBJECT_KIND_ORDER, getSubjectKindMeta, parseSubjectKind } from "@/lib/subject-kind";
+import { SUBJECT_KIND_ORDER, getSubjectKindMeta, getSubjectKindShareTitleByLocale, parseSubjectKind } from "@/lib/subject-kind";
 
 export const dynamicParams = false;
 
@@ -24,6 +25,13 @@ export async function generateMetadata({
   const kind = parseSubjectKind(rawKind);
   if (!kind) {
     return { title: "页面不存在" };
+  }
+
+  const locale = await getLocale();
+  if (locale === "en") {
+    return {
+      title: getSubjectKindShareTitleByLocale(kind, "en"),
+    };
   }
 
   const meta = getSubjectKindMeta(kind);

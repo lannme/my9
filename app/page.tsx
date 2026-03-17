@@ -1,9 +1,14 @@
 import type { Metadata } from "next";
+import { getLocale, getTranslations } from "next-intl/server";
 import HomeKindEntry from "@/app/components/HomeKindEntry";
 
-export const metadata: Metadata = {
-  title: "构成我的九部游戏",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  const t = await getTranslations({ locale, namespace: "home" });
+  return {
+    title: t("pageTitle"),
+  };
+}
 
 export default function HomePage() {
   return <HomeKindEntry />;

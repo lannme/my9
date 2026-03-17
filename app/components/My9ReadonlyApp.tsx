@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { ChevronRight } from "lucide-react";
+import { useLocale } from "next-intl";
 import { SharePlatformActions } from "@/components/share/SharePlatformActions";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { InlineToast, ToastKind } from "@/app/components/v3/InlineToast";
 import { NineGridBoard } from "@/app/components/v3/NineGridBoard";
 import { SelectedGamesList } from "@/app/components/v3/SelectedGamesList";
-import { SubjectKind, getSubjectKindMeta, getSubjectKindShareTitle, parseSubjectKind } from "@/lib/subject-kind";
+import { SubjectKind, getSubjectKindMeta, getSubjectKindShareTitleByLocale, parseSubjectKind } from "@/lib/subject-kind";
 import { ShareGame } from "@/lib/share/types";
 
 type ToastState = {
@@ -50,8 +51,12 @@ export default function My9ReadonlyApp({
   initialShareData = null,
 }: My9ReadonlyAppProps) {
   const router = useRouter();
+  const locale = useLocale();
   const kindMeta = useMemo(() => getSubjectKindMeta(kind), [kind]);
-  const shareTitle = useMemo(() => getSubjectKindShareTitle(kind), [kind]);
+  const shareTitle = useMemo(
+    () => getSubjectKindShareTitleByLocale(kind, locale === "en" ? "en" : "zh"),
+    [kind, locale]
+  );
   const [games, setGames] = useState<Array<ShareGame | null>>(() =>
     normalizeGamesForState(initialShareData?.games)
   );
