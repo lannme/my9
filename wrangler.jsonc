@@ -6,6 +6,12 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
   "preview_urls": true,
+  "routes": [
+    {
+      "pattern": "my9.shatranj.space",
+      "custom_domain": true
+    }
+  ],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
@@ -41,6 +47,12 @@
   ],
   "env": {
     "test": {
+      "routes": [
+        {
+          "pattern": "my9test.shatranj.space",
+          "custom_domain": true
+        }
+      ],
       "vars": {
         "MY9_SHARE_VIEW_ANALYTICS_DATASET": "my9_share_views_test_v1",
         "MY9_SHARE_VIEW_ROLLUP_DAYS": "2"

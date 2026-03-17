@@ -732,7 +732,7 @@ export default function My9V3App({
             {tReadonly("viewTrends")}
             <ChevronRight className="w-4 h-4 text-sky-500 dark:text-sky-300" aria-hidden="true" />
           </button>
-          <SupportButton />
+          {/* <SupportButton /> */}
         </header>
 
         {toast ? (
