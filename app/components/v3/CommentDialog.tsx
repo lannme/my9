@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 
 interface CommentDialogProps {
@@ -23,6 +24,7 @@ export function CommentDialog({
   onChangeSpoiler,
   onSave,
 }: CommentDialogProps) {
+  const t = useTranslations("comment");
   useEffect(() => {
     if (!open) return;
     function onKeydown(event: KeyboardEvent) {
@@ -48,14 +50,14 @@ export function CommentDialog({
       <div className="w-full max-w-lg rounded-3xl border border-border bg-card p-6 shadow-xl">
         <div className="mb-3 flex items-start justify-between gap-4">
           <div className="space-y-1">
-            <h2 className="text-xl font-bold">编辑评论</h2>
-            <p className="text-sm text-muted-foreground">查看你分享的链接的人可以看到这些评论。</p>
+            <h2 className="text-xl font-bold">{t("title")}</h2>
+            <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
           </div>
           <button
             type="button"
             onClick={() => onOpenChange(false)}
             className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
-            aria-label="关闭评论弹窗"
+            aria-label={t("closeAria")}
           >
             <X className="h-4 w-4" />
           </button>
@@ -67,7 +69,7 @@ export function CommentDialog({
             maxLength={140}
             onChange={(event) => onChangeValue(event.target.value.slice(0, 140))}
             className="min-h-32 w-full resize-none rounded-2xl border border-input bg-background px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring"
-            placeholder="写下你想说的评论..."
+            placeholder={t("placeholder")}
             autoFocus
           />
 
@@ -79,7 +81,7 @@ export function CommentDialog({
                 checked={spoiler}
                 onChange={(event) => onChangeSpoiler(event.target.checked)}
               />
-              剧透折叠
+              {t("spoilerLabel")}
             </label>
             <span>{value.length}/140</span>
           </div>
@@ -87,10 +89,10 @@ export function CommentDialog({
 
         <div className="mt-4 flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            取消
+            {t("cancel")}
           </Button>
           <Button type="button" onClick={onSave}>
-            保存
+            {t("save")}
           </Button>
         </div>
       </div>

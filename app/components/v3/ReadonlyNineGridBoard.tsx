@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { Plus } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { ShareGame } from "@/lib/share/types";
 import { SubjectKind } from "@/lib/subject-kind";
 import { cn } from "@/lib/utils";
@@ -18,7 +19,8 @@ function shouldTopCropCover(kind?: SubjectKind) {
   return kind === "character" || kind === "person";
 }
 
-export function ReadonlyNineGridBoard({ games, subjectLabel, kind }: ReadonlyNineGridBoardProps) {
+export async function ReadonlyNineGridBoard({ games, subjectLabel, kind }: ReadonlyNineGridBoardProps) {
+  const t = await getTranslations("grid");
   return (
     <div className="w-full grid grid-cols-3 gap-2 sm:gap-3">
       {games.map((game, index) => {
@@ -41,7 +43,7 @@ export function ReadonlyNineGridBoard({ games, subjectLabel, kind }: ReadonlyNin
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-xs font-medium text-muted-foreground">
                   <Plus className="h-4 w-4" />
-                  <span>选择{subjectLabel}</span>
+                  <span>{t("selectWithLabel", { subjectLabel })}</span>
                 </div>
               )}
               <div className="absolute left-1.5 top-1 text-[10px] font-semibold text-muted-foreground/70">

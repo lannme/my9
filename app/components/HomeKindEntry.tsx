@@ -8,7 +8,7 @@ import {
   DEFAULT_SUBJECT_KIND,
   SUBJECT_KIND_ORDER,
   SubjectKind,
-  getSubjectKindMeta,
+  getSubjectKindMetaByLocale,
   getSubjectKindShareTitleByLocale,
 } from "@/lib/subject-kind";
 import { cn } from "@/lib/utils";
@@ -16,12 +16,13 @@ import { cn } from "@/lib/utils";
 export default function HomeKindEntry() {
   const t = useTranslations("home");
   const locale = useLocale();
+  const appLocale = locale === "en" ? "en" : "zh";
   const [kind, setKind] = useState<SubjectKind>(DEFAULT_SUBJECT_KIND);
   const pickerRef = useRef<HTMLDivElement | null>(null);
   const scrollRafRef = useRef<number | null>(null);
-  const kindMeta = getSubjectKindMeta(kind);
-  const shareTitle = getSubjectKindShareTitleByLocale(kind, locale === "en" ? "en" : "zh");
-  const titlePrefix = `构成我的九${kindMeta.selectionUnit}`;
+  const kindMeta = getSubjectKindMetaByLocale(kind, appLocale);
+  const shareTitle = getSubjectKindShareTitleByLocale(kind, appLocale);
+  const titlePrefix = appLocale === "en" ? "My Nine" : `构成我的九${kindMeta.selectionUnit}`;
   const kindSwitchable = SUBJECT_KIND_ORDER.length > 1;
   const optionRefs = useRef<Record<SubjectKind, HTMLButtonElement | null>>({
     game: null,
@@ -126,7 +127,7 @@ export default function HomeKindEntry() {
                     >
                       <div className="h-20 sm:h-28" aria-hidden />
                       {SUBJECT_KIND_ORDER.map((item) => {
-                        const meta = getSubjectKindMeta(item);
+                        const meta = getSubjectKindMetaByLocale(item, appLocale);
                         const active = item === kind;
                         return (
                           <button

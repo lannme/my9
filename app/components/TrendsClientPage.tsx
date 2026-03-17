@@ -14,13 +14,13 @@ import {
   DEFAULT_SUBJECT_KIND,
   SubjectKind,
   SUBJECT_KIND_ORDER,
-  getSubjectKindMeta,
+  getSubjectKindMetaByLocale,
   parseSubjectKind,
 } from "@/lib/subject-kind";
 import type { TrendGameItem, TrendResponse, TrendPeriod, TrendView, TrendYearPage } from "@/lib/share/types";
 import { resolveSubjectLink } from "@/lib/subject-source";
 import { cn } from "@/lib/utils";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 type TrendsApiResponse = TrendResponse & { ok: boolean };
 
@@ -378,6 +378,8 @@ export default function TrendsClientPage({
   initialError = "",
 }: TrendsClientPageProps) {
   const t = useTranslations("trends");
+  const locale = useLocale();
+  const appLocale = locale === "en" ? "en" : "zh";
   const searchParams = useSearchParams();
   const searchParamsKey = searchParams.toString();
   const urlState = useMemo(() => {
@@ -627,8 +629,12 @@ export default function TrendsClientPage({
   const showOverallPagination = Boolean(view === "overall" && !error && data && !hasInsufficientSamples);
   const showYearPagination = Boolean(view === "year" && !error && data && !hasInsufficientSamples);
   const trendsTitle = useMemo(() => {
-    return `构成大家的${getSubjectKindMeta(kind).trendLabel}`;
-  }, [kind]);
+    const trendLabel = getSubjectKindMetaByLocale(kind, appLocale).trendLabel;
+    if (appLocale === "en") {
+      return `Community picks: ${trendLabel}`;
+    }
+    return `构成大家的${trendLabel}`;
+  }, [appLocale, kind]);
 
   const topCardSummary = useMemo(() => {
     return `目标周期：${formatPeriodLabel(data?.period ?? period)}`;
@@ -688,7 +694,7 @@ export default function TrendsClientPage({
                     aria-label="切换观测类别"
                   >
                     <SubjectKindIcon kind={kind} className="h-3.5 w-3.5" />
-                    {getSubjectKindMeta(kind).label}
+                    {getSubjectKindMetaByLocale(kind, appLocale).label}
                     <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />
                   </button>
                 </div>
@@ -698,7 +704,7 @@ export default function TrendsClientPage({
                 <div ref={kindTabsScrollerRef} className="hidden w-full max-w-full overflow-x-auto md:block">
                   <div className="inline-flex min-w-max overflow-hidden rounded-full border border-border bg-card">
                     {SUBJECT_KIND_ORDER.map((option) => {
-                      const optionMeta = getSubjectKindMeta(option);
+                    const optionMeta = getSubjectKindMetaByLocale(option, appLocale);
                       return (
                         <button
                           key={option}
@@ -913,7 +919,7 @@ export default function TrendsClientPage({
             </DialogHeader>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-2">
               {SUBJECT_KIND_ORDER.map((item) => {
-                const meta = getSubjectKindMeta(item);
+              const meta = getSubjectKindMetaByLocale(item, appLocale);
                 const active = item === kind;
                 return (
                   <Button

@@ -25,9 +25,11 @@ export async function generateMetadata({
     return { title: "页面不存在" };
   }
   const locale = await getLocale();
+  const appLocale = locale === "en" ? "en" : "zh";
+  const baseTitle = getSubjectKindShareTitleByLocale(kind, appLocale);
 
   return {
-    title: `${getSubjectKindShareTitleByLocale(kind, locale === "en" ? "en" : "zh")}分享页`,
+    title: appLocale === "en" ? `${baseTitle} · Share` : `${baseTitle}分享页`,
   };
 }
 
@@ -35,8 +37,6 @@ export default async function ShareReadonlyPage({
   params,
 }: ShareReadonlyPageProps) {
   const { kind: rawKind, shareId: rawShareId } = await params;
-  const locale = await getLocale();
-  const localePrefix = locale === "zh" ? "" : `/${locale}`;
   const kind = parseSubjectKind(rawKind);
   const shareId = normalizeShareId(rawShareId);
   if (!kind || !shareId) {
@@ -44,7 +44,7 @@ export default async function ShareReadonlyPage({
   }
 
   if (!isCanonicalShareId(rawShareId) || rawShareId.trim().toLowerCase() !== shareId) {
-    permanentRedirect(`${localePrefix}/${kind}/s/${shareId}`);
+    permanentRedirect(`/${kind}/s/${shareId}`);
   }
 
   let initialShareData: InitialReadonlyShareData | null = null;
@@ -54,7 +54,7 @@ export default async function ShareReadonlyPage({
     if (share) {
       const shareKind = parseSubjectKind(share.kind) ?? kind;
       if (shareKind !== kind) {
-        redirect(`${localePrefix}/${shareKind}/s/${share.shareId}`);
+        redirect(`/${shareKind}/s/${share.shareId}`);
       }
 
       initialShareData = {

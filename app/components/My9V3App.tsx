@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { ChevronRight, ChevronsUpDown } from "lucide-react";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
 import { SharePlatformActions } from "@/components/share/SharePlatformActions";
 import { SiteFooter } from "@/components/layout/SiteFooter";
@@ -20,7 +20,7 @@ import { SupportButton } from "@/components/SupportButton";
 import {
   SUBJECT_KIND_ORDER,
   SubjectKind,
-  getSubjectKindMeta,
+  getSubjectKindMetaByLocale,
   getSubjectKindShareTitleByLocale,
   parseSubjectKind,
 } from "@/lib/subject-kind";
@@ -160,9 +160,13 @@ export default function My9V3App({
   initialShareData = null,
   readOnlyShare = false,
 }: My9V3AppProps) {
+  const t = useTranslations("editor");
+  const tReadonly = useTranslations("readonly");
   const router = useRouter();
   const pathname = usePathname();
-  const kindMeta = useMemo(() => getSubjectKindMeta(kind), [kind]);
+  const locale = useLocale();
+  const appLocale = locale === "en" ? "en" : "zh";
+  const kindMeta = useMemo(() => getSubjectKindMetaByLocale(kind, appLocale), [appLocale, kind]);
 
   const [games, setGames] = useState<Array<ShareGame | null>>(() =>
     normalizeGamesForState(initialShareData?.games)
@@ -203,11 +207,10 @@ export default function My9V3App({
   const filledCount = useMemo(() => games.filter((item) => item !== null).length, [games]);
   const allSelected = filledCount === 9;
   const isReadonly = readOnlyShare;
-  const locale = useLocale();
 
   const draftStorageKey = kindMeta.draftStorageKey;
   const selectionUnit = kindMeta.selectionUnit;
-  const shareTitle = getSubjectKindShareTitleByLocale(kind, locale === "en" ? "en" : "zh");
+  const shareTitle = getSubjectKindShareTitleByLocale(kind, appLocale);
   function ensureSearchClientCacheHydrated() {
     if (searchClientCacheHydratedRef.current) return;
     searchClientCacheRef.current = readSearchClientCacheFromSession();
@@ -283,14 +286,14 @@ export default function My9V3App({
         const json = await response.json();
         if (!active) return;
         if (!response.ok || !json?.ok) {
-          setToast({ kind: "error", message: json?.error || "共享页面加载失败" });
+          setToast({ kind: "error", message: json?.error || tReadonly("loadFailed") });
           setLoadingShare(false);
           return;
         }
 
         const responseKind = parseSubjectKind(json.kind) ?? "game";
         if (responseKind !== kind) {
-          setToast({ kind: "error", message: "分享类型与页面不匹配" });
+          setToast({ kind: "error", message: tReadonly("kindMismatch") });
           setLoadingShare(false);
           router.replace(`/${responseKind}/s/${json.shareId || currentShareId}`);
           return;
@@ -302,7 +305,7 @@ export default function My9V3App({
         setShareId(json.shareId || currentShareId);
       } catch {
         if (!active) return;
-        setToast({ kind: "error", message: "共享页面加载失败" });
+        setToast({ kind: "error", message: tReadonly("loadFailed") });
       } finally {
         if (active) {
           setLoadingShare(false);
@@ -378,7 +381,7 @@ export default function My9V3App({
 
   function guardReadonly() {
     if (!isReadonly) return false;
-    pushToast("info", "共享页面不可编辑");
+    pushToast("info", t("readonlyCannotEdit"));
     return true;
   }
 
@@ -411,7 +414,7 @@ export default function My9V3App({
     setCreatorName(singleUndoSnapshot.creatorName);
     setSingleUndoSnapshot(null);
     setSpoilerExpandedSet(new Set());
-    pushToast("success", "已撤销上一步操作");
+    pushToast("success", t("undoSuccess"));
   }
 
   function handleClear() {
@@ -420,13 +423,13 @@ export default function My9V3App({
     makeUndoSnapshot();
     setGames(createEmptyGames());
     setSpoilerExpandedSet(new Set());
-    pushToast("info", `已清空已选${kindMeta.label}`);
+    pushToast("info", t("clearedSelected", { subjectLabel: kindMeta.label }));
   }
 
   async function handleSearch() {
     const normalizedQuery = normalizeSearchQuery(searchQuery);
     if (!normalizedQuery) {
-      setSearchError("请输入关键词");
+      setSearchError(t("searchKeywordRequired"));
       return;
     }
 
@@ -480,7 +483,7 @@ export default function My9V3App({
       };
 
       if (!response.ok || !json?.ok) {
-        setSearchError(json?.error || "搜索失败，请稍后再试");
+        setSearchError(json?.error || t("searchFailed"));
         setSearchResults([]);
         setSearchMeta(createSearchMeta(normalizedQuery));
         return;
@@ -517,7 +520,7 @@ export default function My9V3App({
       });
       setSearchActiveIndex(nextResponse.items.length > 0 ? 0 : -1);
     } catch {
-      setSearchError("搜索失败，请稍后再试");
+      setSearchError(t("searchFailed"));
       setSearchResults([]);
       setSearchMeta(createSearchMeta(normalizedQuery));
     } finally {
@@ -558,7 +561,7 @@ export default function My9V3App({
       });
       setSearchOpen(false);
       setSelectedSlot(null);
-      pushToast("success", `已与第 ${duplicateIndex + 1} 格互换`);
+      pushToast("success", t("swappedSlot", { index: duplicateIndex + 1 }));
       return;
     }
 
@@ -570,7 +573,7 @@ export default function My9V3App({
 
     setSearchOpen(false);
     setSelectedSlot(null);
-    pushToast("success", `已填入第 ${targetSlot + 1} 格`);
+    pushToast("success", t("filledSlot", { index: targetSlot + 1 }));
   }
 
   function openComment(index: number) {
@@ -596,14 +599,18 @@ export default function My9V3App({
     });
 
     setCommentOpen(false);
-    pushToast("success", "评论已保存");
+    pushToast("success", t("commentSaved"));
   }
 
   async function handleSaveShare() {
     if (guardReadonly()) return;
     if (!allSelected) {
       const confirmed = window.confirm(
-        `当前仅选择了 ${filledCount}/9${selectionUnit}${kindMeta.label}，确认继续保存吗？`
+        t("saveConfirmPartial", {
+          filledCount,
+          selectionUnit,
+          subjectLabel: kindMeta.label,
+        })
       );
       if (!confirmed) return;
     }
@@ -637,13 +644,13 @@ export default function My9V3App({
 
       const json = await response.json();
       if (!response.ok || !json?.ok) {
-        pushToast("error", json?.error || "分享创建失败");
+        pushToast("error", json?.error || t("shareCreateFailed"));
         return;
       }
 
       const targetKind = parseSubjectKind(json.kind) ?? kind;
       setShareId(json.shareId);
-      pushToast("success", json.deduped ? "分享页面已创建" : "分享页面已创建");
+      pushToast("success", t("shareCreated"));
       const target = `/${targetKind}/s/${json.shareId}`;
       clearNavigationFallback();
       navigationFallbackTargetRef.current = target;
@@ -657,7 +664,7 @@ export default function My9V3App({
         clearNavigationFallback();
       }, SHARE_NAVIGATION_FALLBACK_MS);
     } catch {
-      pushToast("error", "分享创建失败，请稍后重试");
+      pushToast("error", t("shareCreateFailedRetry"));
     } finally {
       setSavingShare(false);
     }
@@ -672,7 +679,7 @@ export default function My9V3App({
     if (!game || !game.spoiler) return;
 
     if (isReadonly && !spoilerExpandedSet.has(index)) {
-      const confirmed = window.confirm("包含剧透内容，确认展开吗？");
+      const confirmed = window.confirm(tReadonly("spoilerConfirm"));
       if (!confirmed) return;
     }
 
@@ -697,11 +704,11 @@ export default function My9V3App({
   }
 
   return (
-    <main className="min-h-screen bg-background px-4 py-16 text-foreground">
-      <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-4">
+    <main className="px-4 py-16 min-h-screen bg-background text-foreground">
+      <div className="flex flex-col gap-4 items-center mx-auto w-full max-w-2xl">
         <header className="space-y-3 text-center">
-          <div className="inline-flex items-center gap-2 sm:gap-3">
-            <h1 className="whitespace-nowrap text-3xl font-bold leading-tight tracking-tight text-foreground sm:text-4xl">
+          <div className="inline-flex gap-2 items-center sm:gap-3">
+            <h1 className="text-3xl font-bold tracking-tight leading-tight whitespace-nowrap text-foreground sm:text-4xl">
               {shareTitle}
             </h1>
             {!isReadonly && SUBJECT_KIND_ORDER.length > 1 ? (
@@ -709,10 +716,10 @@ export default function My9V3App({
                 type="button"
                 onClick={() => setKindPickerOpen(true)}
                 className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2.5 py-1 text-xs font-semibold text-card-foreground transition-colors hover:bg-accent hover:text-accent-foreground sm:px-3 sm:py-1.5 sm:text-sm"
-                aria-label="切换填写类型"
+                aria-label={t("switchKindAria")}
               >
                 <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />
-                切换
+                {t("switchKind")}
               </button>
             ) : null}
           </div>
@@ -722,10 +729,9 @@ export default function My9V3App({
             className="inline-flex items-center justify-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-4 py-1.5 text-base font-semibold text-sky-700 transition-colors hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-200 dark:hover:bg-sky-900/60"
             onClick={() => router.push(`/trends?kind=${kind}`)}
           >
-            大家的构成
-            <ChevronRight className="h-4 w-4 text-sky-500 dark:text-sky-300" aria-hidden="true" />
+            {tReadonly("viewTrends")}
+            <ChevronRight className="w-4 h-4 text-sky-500 dark:text-sky-300" aria-hidden="true" />
           </button>
-          <p className="text-sm text-amber-600 dark:text-amber-400">{/* 还没想好要做什么…… */}</p>
           <SupportButton />
         </header>
 
@@ -736,36 +742,38 @@ export default function My9V3App({
         ) : null}
 
         {isReadonly ? (
-          <div className="flex flex-col items-center gap-2">
+          <div className="flex flex-col gap-2 items-center">
             <p className="rounded-full border border-amber-200 bg-amber-50 px-4 py-1.5 text-xs font-semibold text-amber-700 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-300">
-              这是共享页面（只读）
+              {tReadonly("readonlyBadge")}
             </p>
-            <p className="text-sm text-muted-foreground">创作者: {creatorName.trim() || "匿名"}</p>
+            <p className="text-sm text-muted-foreground">
+              {tReadonly("creatorLabel")} {creatorName.trim() || tReadonly("anonymous")}
+            </p>
             <button
               type="button"
-              className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-5 py-2 text-sm font-bold text-card-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+              className="inline-flex gap-2 justify-center items-center px-5 py-2 text-sm font-bold rounded-full border transition-colors border-border bg-card text-card-foreground hover:bg-accent hover:text-accent-foreground"
               onClick={() => router.push(`/${kind}`)}
             >
-              前往填写页面
+              {tReadonly("goToEditor")}
             </button>
           </div>
         ) : (
           <div className="w-full max-w-xl">
-            <label className="mb-2 block text-sm font-semibold text-foreground">创作者（推荐填写）</label>
+            <label className="block mb-2 text-sm font-semibold text-foreground">{t("creatorLabel")}</label>
             <Input
               value={creatorName}
               onChange={(event) => setCreatorName(event.target.value.slice(0, 40))}
-              placeholder="输入你的昵称"
+              placeholder={t("creatorPlaceholder")}
               className="w-full rounded-xl border-border bg-card px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:ring-sky-200 dark:focus-visible:ring-sky-900"
             />
-            <p className="mt-1 text-right text-xs text-muted-foreground">{creatorName.length}/40</p>
+            <p className="mt-1 text-xs text-right text-muted-foreground">{creatorName.length}/40</p>
           </div>
         )}
 
         {loadingShare ? (
-          <p className="text-sm text-muted-foreground">正在加载共享页面...</p>
+          <p className="text-sm text-muted-foreground">{tReadonly("loadingShare")}</p>
         ) : (
-          <div className="mx-auto w-full rounded-xl border-4 border-background bg-card p-1 shadow-2xl ring-1 ring-border/70 sm:p-4">
+          <div className="p-1 mx-auto w-full rounded-xl border-4 ring-1 shadow-2xl border-background bg-card ring-border/70 sm:p-4">
             <NineGridBoard
               games={games}
               subjectLabel={kindMeta.label}
@@ -797,7 +805,7 @@ export default function My9V3App({
         ) : null}
 
         {isReadonly ? (
-          <div className="flex w-full flex-col items-center gap-3">
+          <div className="flex flex-col gap-3 items-center w-full">
             <SharePlatformActions
               kind={kind}
               shareId={shareId}
@@ -871,11 +879,11 @@ export default function My9V3App({
         <Dialog open={kindPickerOpen} onOpenChange={setKindPickerOpen}>
           <DialogContent className="w-[86vw] max-w-[21rem] rounded-2xl p-4 sm:max-w-md sm:p-6">
             <DialogHeader>
-              <DialogTitle>切换填写类型</DialogTitle>
+              <DialogTitle>{t("switchKindTitle")}</DialogTitle>
             </DialogHeader>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-2">
               {SUBJECT_KIND_ORDER.map((item) => {
-                const meta = getSubjectKindMeta(item);
+                const meta = getSubjectKindMetaByLocale(item, appLocale);
                 const active = item === kind;
                 return (
                   <Button
@@ -888,7 +896,7 @@ export default function My9V3App({
                       active && "border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-200"
                     )}
                   >
-                    <SubjectKindIcon kind={item} className="h-4 w-4" />
+                    <SubjectKindIcon kind={item} className="w-4 h-4" />
                     <span className="font-semibold">{meta.label}</span>
                   </Button>
                 );

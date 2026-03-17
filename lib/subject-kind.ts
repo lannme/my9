@@ -224,8 +224,145 @@ const KIND_META_MAP: Record<SubjectKind, SubjectKindMeta> = {
   },
 };
 
+const KIND_META_EN_OVERRIDES: Partial<Record<SubjectKind, Partial<SubjectKindMeta>>> = {
+  game: {
+    label: "Games",
+    longLabel: "Nine Games",
+    selectionUnit: "games",
+    subtitle: "Share the games you love with the world.",
+    searchPlaceholder: "Search games",
+    searchDialogTitle: "Search games",
+    searchIdleHint: "Type to search games",
+    trendLabel: "Games",
+  },
+  boardgame: {
+    label: "Board games",
+    longLabel: "Nine board games",
+    selectionUnit: "board games",
+    subtitle: "Share the board games you love with the world.",
+    searchPlaceholder: "Search board games",
+    searchDialogTitle: "Search board games",
+    searchIdleHint: "Type to search board games",
+    trendLabel: "Board games",
+  },
+  anime: {
+    label: "Anime",
+    longLabel: "Nine anime",
+    selectionUnit: "anime",
+    subtitle: "Share the anime you love with the world.",
+    searchPlaceholder: "Search anime",
+    searchDialogTitle: "Search anime",
+    searchIdleHint: "Type to search anime",
+    trendLabel: "Anime",
+  },
+  tv: {
+    label: "TV",
+    longLabel: "Nine TV shows",
+    selectionUnit: "shows",
+    subtitle: "Share the TV shows you love with the world.",
+    searchPlaceholder: "Search TV shows",
+    searchDialogTitle: "Search TV shows",
+    searchIdleHint: "Type to search TV shows",
+    trendLabel: "TV",
+  },
+  movie: {
+    label: "Movies",
+    longLabel: "Nine movies",
+    selectionUnit: "movies",
+    subtitle: "Share the movies you love with the world.",
+    searchPlaceholder: "Search movies",
+    searchDialogTitle: "Search movies",
+    searchIdleHint: "Type to search movies",
+    trendLabel: "Movies",
+  },
+  manga: {
+    label: "Manga",
+    longLabel: "Nine manga",
+    selectionUnit: "manga",
+    subtitle: "Share the manga you love with the world.",
+    searchPlaceholder: "Search manga",
+    searchDialogTitle: "Search manga",
+    searchIdleHint: "Type to search manga",
+    trendLabel: "Manga",
+  },
+  lightnovel: {
+    label: "Light novels",
+    longLabel: "Nine light novels",
+    selectionUnit: "novels",
+    subtitle: "Share the light novels you love with the world.",
+    searchPlaceholder: "Search light novels",
+    searchDialogTitle: "Search light novels",
+    searchIdleHint: "Type to search light novels",
+    trendLabel: "Light novels",
+  },
+  work: {
+    label: "Works",
+    longLabel: "Nine works",
+    selectionUnit: "works",
+    subtitle: "Share the works you love with the world.",
+    searchPlaceholder: "Search works",
+    searchDialogTitle: "Search works",
+    searchIdleHint: "Type to search works",
+    trendLabel: "Works",
+  },
+  song: {
+    label: "Songs",
+    longLabel: "Nine songs",
+    selectionUnit: "songs",
+    subtitle: "Share the songs you love with the world.",
+    searchPlaceholder: "Search songs",
+    searchDialogTitle: "Search songs",
+    searchIdleHint: "Type to search songs",
+    trendLabel: "Songs",
+  },
+  album: {
+    label: "Albums",
+    longLabel: "Nine albums",
+    selectionUnit: "albums",
+    subtitle: "Share the albums you love with the world.",
+    searchPlaceholder: "Search albums",
+    searchDialogTitle: "Search albums",
+    searchIdleHint: "Type to search albums",
+    trendLabel: "Albums",
+  },
+  character: {
+    label: "Characters",
+    longLabel: "Nine characters",
+    selectionUnit: "characters",
+    subtitle: "Share the characters you love with the world.",
+    searchPlaceholder: "Search characters",
+    searchDialogTitle: "Search characters",
+    searchIdleHint: "Type to search characters",
+    trendLabel: "Characters",
+  },
+  person: {
+    label: "People",
+    longLabel: "Nine people",
+    selectionUnit: "people",
+    subtitle: "Share the people you love with the world.",
+    searchPlaceholder: "Search people",
+    searchDialogTitle: "Search people",
+    searchIdleHint: "Type to search people",
+    trendLabel: "People",
+  },
+};
+
 export function getSubjectKindMeta(kind: SubjectKind): SubjectKindMeta {
   return KIND_META_MAP[kind];
+}
+
+export function getSubjectKindMetaByLocale(kind: SubjectKind, locale: AppLocale): SubjectKindMeta {
+  if (locale !== "en") return getSubjectKindMeta(kind);
+  const base = getSubjectKindMeta(kind);
+  const override = KIND_META_EN_OVERRIDES[kind];
+  if (!override) return base;
+  return {
+    ...base,
+    ...override,
+    kind: base.kind,
+    search: base.search,
+    draftStorageKey: base.draftStorageKey,
+  };
 }
 
 export function getSubjectKindShareTitle(kind: SubjectKind): string {
@@ -234,14 +371,14 @@ export function getSubjectKindShareTitle(kind: SubjectKind): string {
 }
 
 const SUBJECT_KIND_LABEL_EN: Partial<Record<SubjectKind, string>> = {
-  boardgame: "Board Games",
+  boardgame: "board games",
 };
 
 export function getSubjectKindShareTitleByLocale(kind: SubjectKind, locale: AppLocale): string {
   if (locale !== "en") {
     return getSubjectKindShareTitle(kind);
   }
-  const label = SUBJECT_KIND_LABEL_EN[kind] ?? getSubjectKindMeta(kind).label;
+  const label = SUBJECT_KIND_LABEL_EN[kind] ?? getSubjectKindMetaByLocale(kind, "en").label;
   return `My Nine ${label}`;
 }
 

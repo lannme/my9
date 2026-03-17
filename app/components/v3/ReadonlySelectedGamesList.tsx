@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { Globe } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { ShareGame } from "@/lib/share/types";
 import type { SubjectKind } from "@/lib/subject-kind";
 import { ReadonlySpoilerComment } from "@/app/components/v3/ReadonlySpoilerComment";
@@ -16,12 +17,13 @@ function displayName(game: ShareGame): string {
   return game.localizedName?.trim() || game.name;
 }
 
-export function ReadonlySelectedGamesList({
+export async function ReadonlySelectedGamesList({
   games,
   subjectLabel,
   bangumiSearchCat,
   kind,
 }: ReadonlySelectedGamesListProps) {
+  const t = await getTranslations("selectedList");
   const selected = games
     .map((game, index) => ({ index, game }))
     .filter((item): item is { index: number; game: ShareGame } => Boolean(item.game));
@@ -29,12 +31,12 @@ export function ReadonlySelectedGamesList({
   return (
     <section className="w-full max-w-2xl px-1 sm:px-4">
       <div className="border-b border-border pb-3">
-        <h2 className="text-lg font-bold text-foreground">选择的{subjectLabel}</h2>
+        <h2 className="text-lg font-bold text-foreground">{t("title", { subjectLabel })}</h2>
       </div>
 
       <div className="space-y-6">
         {selected.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">还没有选择任何{subjectLabel}。</p>
+          <p className="py-8 text-center text-sm text-muted-foreground">{t("empty", { subjectLabel })}</p>
         ) : null}
 
         {selected.map(({ index, game }) => {
@@ -66,7 +68,7 @@ export function ReadonlySelectedGamesList({
                     />
                   ) : (
                     <div className="flex aspect-[3/4] items-center justify-center text-[11px] text-muted-foreground">
-                      无图
+                      {t("noImage")}
                     </div>
                   )}
                 </div>
@@ -100,7 +102,7 @@ export function ReadonlySelectedGamesList({
                     href={subjectLink.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    title={`在 ${subjectLink.sourceLabel} 查看`}
+                    title={t("viewOnSource", { source: subjectLink.sourceLabel })}
                     className="rounded-md border border-border bg-muted p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                   >
                     <Globe className="h-4 w-4" />

@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { AlertTriangle, Globe, MessageCircle } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { ShareGame } from "@/lib/share/types";
 import type { SubjectKind } from "@/lib/subject-kind";
 import { resolveSubjectLink } from "@/lib/subject-source";
@@ -31,6 +32,7 @@ export function SelectedGamesList({
   onToggleSpoiler,
   onOpenComment,
 }: SelectedGamesListProps) {
+  const t = useTranslations("selectedList");
   const selected = games
     .map((game, index) => ({ index, game }))
     .filter((item): item is { index: number; game: ShareGame } => Boolean(item.game));
@@ -38,12 +40,12 @@ export function SelectedGamesList({
   return (
     <section className="w-full max-w-2xl px-1 sm:px-4">
       <div className="border-b border-border pb-3">
-        <h2 className="text-lg font-bold text-foreground">选择的{subjectLabel}</h2>
+        <h2 className="text-lg font-bold text-foreground">{t("title", { subjectLabel })}</h2>
       </div>
 
       <div className="space-y-6">
         {selected.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">还没有选择任何{subjectLabel}。</p>
+          <p className="py-8 text-center text-sm text-muted-foreground">{t("empty", { subjectLabel })}</p>
         ) : null}
 
         {selected.map(({ index, game }) => {
@@ -75,7 +77,7 @@ export function SelectedGamesList({
                     />
                   ) : (
                     <div className="flex aspect-[3/4] items-center justify-center text-[11px] text-muted-foreground">
-                      无图
+                      {t("noImage")}
                     </div>
                   )}
                 </div>
@@ -100,7 +102,7 @@ export function SelectedGamesList({
                           className="flex w-full items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-2.5 py-2 text-left text-xs text-amber-800 transition hover:bg-amber-100"
                         >
                           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                          <span>{readOnly ? "包含剧透内容，点击确认后展开" : "剧透评论已折叠，点击展开预览"}</span>
+                          <span>{readOnly ? t("spoilerReadonly") : t("spoilerEditable")}</span>
                         </button>
                       ) : (
                         <p className="whitespace-pre-wrap break-words text-xs text-muted-foreground sm:text-sm">
@@ -116,7 +118,7 @@ export function SelectedGamesList({
                     href={subjectLink.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    title={`在 ${subjectLink.sourceLabel} 查看`}
+                    title={t("viewOnSource", { source: subjectLink.sourceLabel })}
                     className="rounded-md border border-border bg-muted p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                   >
                     <Globe className="h-4 w-4" />
@@ -127,7 +129,7 @@ export function SelectedGamesList({
                       type="button"
                       onClick={() => onOpenComment(index)}
                       className="rounded-md border border-border bg-muted p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                      aria-label={`编辑第 ${index + 1} 格评论`}
+                      aria-label={t("editCommentAria", { index: index + 1 })}
                     >
                       <MessageCircle className="h-4 w-4" />
                     </button>

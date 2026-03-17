@@ -25,11 +25,85 @@
   "trends": {
     "backToMain": "Back"
   },
+  "search": {
+    "noResultHintSongAlbum": "Try searching with artist + song/album name",
+    "noResultHintGeneric": "Try the official name or an alias of {subjectLabel}",
+    "inputAria": "{subjectLabel} search input",
+    "clearAria": "Clear search",
+    "searching": "Searching",
+    "search": "Search",
+    "resultCount": "{count} result(s)",
+    "close": "Close",
+    "statusSearching": "Searching...",
+    "statusErrorFallback": "Search failed. Please check your network and try again.",
+    "retry": "Retry",
+    "noResultsWithQuery": "No results for “{query}”",
+    "noResultsGeneric": "No related {subjectLabel} found"
+  },
+  "selectedList": {
+    "title": "Selected {subjectLabel}",
+    "empty": "No {subjectLabel} selected yet.",
+    "noImage": "No image",
+    "spoilerReadonly": "Contains spoilers. Click to confirm and reveal.",
+    "spoilerEditable": "Spoiler comment collapsed. Click to preview.",
+    "viewOnSource": "View on {source}",
+    "editCommentAria": "Edit comment for slot {index}"
+  },
+  "actions": {
+    "defaultUnit": "items",
+    "selectedCount": "{count} / 9 selected",
+    "remainingShort": "{remaining} {unit} to go",
+    "undo": "Undo",
+    "clear": "Clear",
+    "saveSaving": "Saving...",
+    "saveRemaining": "{remaining} {unit} remaining to save",
+    "saveReady": "Save page"
+  },
+  "comment": {
+    "title": "Edit comment",
+    "subtitle": "People who open your shared link can see these comments.",
+    "closeAria": "Close comment dialog",
+    "placeholder": "Write your comment...",
+    "spoilerLabel": "Mark as spoiler",
+    "cancel": "Cancel",
+    "save": "Save"
+  },
+  "editor": {
+    "readonlyCannotEdit": "This share page is read-only",
+    "undoSuccess": "Undid the last action",
+    "clearedSelected": "Cleared selected {subjectLabel}",
+    "searchKeywordRequired": "Please enter a keyword",
+    "searchFailed": "Search failed. Please try again later.",
+    "swappedSlot": "Swapped with slot {index}",
+    "filledSlot": "Filled slot {index}",
+    "commentSaved": "Comment saved",
+    "saveConfirmPartial": "Only {filledCount}/9 {subjectLabel} selected. Continue saving?",
+    "shareCreateFailed": "Failed to create share",
+    "shareCreated": "Share page created",
+    "shareCreateFailedRetry": "Failed to create share. Please try again later.",
+    "switchKindAria": "Switch kind",
+    "switchKind": "Switch",
+    "switchKindTitle": "Switch kind",
+    "creatorLabel": "Creator (optional)",
+    "creatorPlaceholder": "Enter your name"
+  },
+  "grid": {
+    "select": "Select",
+    "selectWithLabel": "Select {subjectLabel}",
+    "selectSlotAria": "Select slot {index} ({subjectLabel})",
+    "editCommentAria": "Edit comment for slot {index}",
+    "removeGameAria": "Remove game from slot {index}"
+  },
   "readonly": {
     "viewTrends": "Trends",
+    "loadFailed": "Failed to load share page",
+    "kindMismatch": "Share kind does not match this page",
+    "spoilerConfirm": "This contains spoilers. Reveal it?",
+    "spoilerCollapsedLabel": "Contains spoilers. Click to confirm and reveal.",
     "readonlyBadge": "Read-only share page",
     "creatorLabel": "Creator:",
     "anonymous": "Anonymous",
-    "goToEditor": "Go to editor"
+    "goToEditor": "Go to editor",
+    "loadingShare": "Loading share page..."
   }
 }

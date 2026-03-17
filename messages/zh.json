@@ -25,11 +25,85 @@
   "trends": {
     "backToMain": "返回主页面"
   },
+  "search": {
+    "noResultHintSongAlbum": "尝试歌手名 + 歌曲/专辑名进行搜索",
+    "noResultHintGeneric": "尝试{subjectLabel}正式名或别名",
+    "inputAria": "{subjectLabel}搜索输入框",
+    "clearAria": "清空搜索",
+    "searching": "搜索中",
+    "search": "搜索",
+    "resultCount": "共 {count} 条结果",
+    "close": "关闭",
+    "statusSearching": "正在搜索...",
+    "statusErrorFallback": "搜索失败，请检查网络连接后重试",
+    "retry": "重试",
+    "noResultsWithQuery": "未找到“{query}”",
+    "noResultsGeneric": "未找到相关{subjectLabel}"
+  },
+  "selectedList": {
+    "title": "选择的{subjectLabel}",
+    "empty": "还没有选择任何{subjectLabel}。",
+    "noImage": "无图",
+    "spoilerReadonly": "包含剧透内容，点击确认后展开",
+    "spoilerEditable": "剧透评论已折叠，点击展开预览",
+    "viewOnSource": "在 {source} 查看",
+    "editCommentAria": "编辑第 {index} 格评论"
+  },
+  "actions": {
+    "defaultUnit": "个",
+    "selectedCount": "{count} / 9 已选择",
+    "remainingShort": "还差{remaining}{unit}",
+    "undo": "撤销",
+    "clear": "清空",
+    "saveSaving": "保存中...",
+    "saveRemaining": "还差 {remaining} {unit}可保存",
+    "saveReady": "保存页面"
+  },
+  "comment": {
+    "title": "编辑评论",
+    "subtitle": "查看你分享的链接的人可以看到这些评论。",
+    "closeAria": "关闭评论弹窗",
+    "placeholder": "写下你想说的评论...",
+    "spoilerLabel": "剧透折叠",
+    "cancel": "取消",
+    "save": "保存"
+  },
+  "editor": {
+    "readonlyCannotEdit": "共享页面不可编辑",
+    "undoSuccess": "已撤销上一步操作",
+    "clearedSelected": "已清空已选{subjectLabel}",
+    "searchKeywordRequired": "请输入关键词",
+    "searchFailed": "搜索失败，请稍后再试",
+    "swappedSlot": "已与第 {index} 格互换",
+    "filledSlot": "已填入第 {index} 格",
+    "commentSaved": "评论已保存",
+    "saveConfirmPartial": "当前仅选择了 {filledCount}/9{selectionUnit}{subjectLabel}，确认继续保存吗？",
+    "shareCreateFailed": "分享创建失败",
+    "shareCreated": "分享页面已创建",
+    "shareCreateFailedRetry": "分享创建失败，请稍后重试",
+    "switchKindAria": "切换填写类型",
+    "switchKind": "切换",
+    "switchKindTitle": "切换填写类型",
+    "creatorLabel": "创作者（推荐填写）",
+    "creatorPlaceholder": "输入你的昵称"
+  },
+  "grid": {
+    "select": "选择",
+    "selectWithLabel": "选择{subjectLabel}",
+    "selectSlotAria": "选择第 {index} 格{subjectLabel}",
+    "editCommentAria": "编辑第 {index} 格评论",
+    "removeGameAria": "移除第 {index} 格游戏"
+  },
   "readonly": {
     "viewTrends": "大家的构成",
+    "loadFailed": "共享页面加载失败",
+    "kindMismatch": "分享类型与页面不匹配",
+    "spoilerConfirm": "包含剧透内容，确认展开吗？",
+    "spoilerCollapsedLabel": "包含剧透内容，点击确认后展开",
     "readonlyBadge": "这是共享页面（只读）",
     "creatorLabel": "创作者:",
     "anonymous": "匿名",
-    "goToEditor": "前往填写页面"
+    "goToEditor": "前往填写页面",
+    "loadingShare": "正在加载共享页面..."
   }
 }

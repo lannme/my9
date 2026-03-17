@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 
 interface ActionClusterProps {
   filledCount: number;
@@ -15,16 +16,23 @@ interface ActionClusterProps {
   onSave: () => void;
 }
 
-function saveButtonLabel(params: { saving: boolean; filledCount: number; remainingUnit: string }) {
-  const { saving, filledCount, remainingUnit } = params;
-  if (saving) return "保存中...";
-  if (filledCount < 9) return `还差 ${9 - filledCount} ${remainingUnit}可保存`;
-  return "保存页面";
+function saveButtonLabel(params: {
+  t: ReturnType<typeof useTranslations>;
+  saving: boolean;
+  filledCount: number;
+  remainingUnit: string;
+}) {
+  const { t, saving, filledCount, remainingUnit } = params;
+  if (saving) return t("saveSaving");
+  if (filledCount < 9) {
+    return t("saveRemaining", { remaining: 9 - filledCount, unit: remainingUnit });
+  }
+  return t("saveReady");
 }
 
 export function ActionCluster({
   filledCount,
-  remainingUnit = "个",
+  remainingUnit,
   readOnly,
   saving,
   canUndo,
@@ -33,15 +41,19 @@ export function ActionCluster({
   onClear,
   onSave,
 }: ActionClusterProps) {
+  const t = useTranslations("actions");
+  const unit = remainingUnit ?? t("defaultUnit");
   const showEditActions = !readOnly;
   const saveDisabled = saving;
 
   return (
     <section className="flex w-full flex-col items-center gap-3">
       <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 text-sm font-semibold text-card-foreground">
-        <span>{filledCount} / 9 已选择</span>
+        <span>{t("selectedCount", { count: filledCount })}</span>
         {!readOnly && filledCount < 9 ? (
-          <span className="text-xs font-bold text-orange-500">还差{9 - filledCount}{remainingUnit}</span>
+          <span className="text-xs font-bold text-orange-500">
+            {t("remainingShort", { remaining: 9 - filledCount, unit })}
+          </span>
         ) : null}
       </div>
 
@@ -55,7 +67,7 @@ export function ActionCluster({
               disabled={!canUndo}
               onClick={onUndo}
             >
-              撤销
+              {t("undo")}
             </Button>
             <Button
               type="button"
@@ -64,7 +76,7 @@ export function ActionCluster({
               disabled={!canClear}
               onClick={onClear}
             >
-              清空
+              {t("clear")}
             </Button>
           </div>
           <Button
@@ -78,7 +90,7 @@ export function ActionCluster({
             disabled={saveDisabled}
             onClick={onSave}
           >
-            {saveButtonLabel({ saving, filledCount, remainingUnit })}
+            {saveButtonLabel({ t, saving, filledCount, remainingUnit: unit })}
           </Button>
         </div>
       ) : null}

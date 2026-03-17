@@ -3,6 +3,7 @@
 import { useEffect, useMemo } from "react";
 import Image from "next/image";
 import { AlertCircle, Loader2, RefreshCw, Search } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -49,11 +50,11 @@ function shouldTopCropCover(kind: SubjectKind) {
   return kind === "character" || kind === "person";
 }
 
-function getNoResultHint(kind: SubjectKind, subjectLabel: string): string {
+function getNoResultHint(kind: SubjectKind, subjectLabel: string, t: ReturnType<typeof useTranslations>): string {
   if (kind === "song" || kind === "album") {
-    return "尝试歌手名 + 歌曲/专辑名进行搜索";
+    return t("noResultHintSongAlbum");
   }
-  return `尝试${subjectLabel}正式名或别名`;
+  return t("noResultHintGeneric", { subjectLabel });
 }
 
 export function SearchDialog({
@@ -76,6 +77,7 @@ export function SearchDialog({
   onSubmitSearch,
   onPickGame,
 }: SearchDialogProps) {
+  const t = useTranslations("search");
   const trimmedQuery = query.trim();
   const orderedResults = results;
 
@@ -124,7 +126,7 @@ export function SearchDialog({
                 role="combobox"
                 aria-expanded={open}
                 aria-controls="search-results-list"
-                aria-label={`${subjectLabel}搜索输入框`}
+                aria-label={t("inputAria", { subjectLabel })}
                 placeholder={inputPlaceholder}
                 onChange={(event) => onQueryChange(event.target.value)}
                 onKeyDown={(event) => {
@@ -178,7 +180,7 @@ export function SearchDialog({
               {query ? (
                 <button
                   type="button"
-                  aria-label="清空搜索"
+                  aria-label={t("clearAria")}
                   onClick={() => {
                     onQueryChange("");
                     onActiveIndexChange(-1);
@@ -197,12 +199,12 @@ export function SearchDialog({
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  搜索中
+                  {t("searching")}
                 </>
               ) : (
                 <>
                   <Search className="mr-2 h-4 w-4" />
-                  搜索
+                  {t("search")}
                 </>
               )}
             </Button>
@@ -262,7 +264,7 @@ export function SearchDialog({
 
         <DialogFooter className="mt-2 flex flex-col justify-between border-t pt-2 sm:flex-row sm:justify-between">
           <div className="mb-2 text-xs text-muted-foreground sm:mb-0">
-            {orderedResults.length > 0 ? `共 ${orderedResults.length} 条结果` : ""}
+            {orderedResults.length > 0 ? t("resultCount", { count: orderedResults.length }) : ""}
           </div>
           <Button
             variant="outline"
@@ -270,7 +272,7 @@ export function SearchDialog({
             onClick={() => onOpenChange(false)}
             className="hidden sm:inline-flex"
           >
-            关闭
+            {t("close")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -298,12 +300,13 @@ function SearchStatus(props: {
     noResultQuery,
     onRetry,
   } = props;
+  const t = useTranslations("search");
 
   if (state === "searching") {
     return (
       <div className="flex flex-col items-center justify-center py-10 text-muted-foreground" aria-live="polite">
         <Loader2 className="mb-2 h-8 w-8 animate-spin" />
-        <p>正在搜索...</p>
+        <p>{t("statusSearching")}</p>
       </div>
     );
   }
@@ -312,21 +315,25 @@ function SearchStatus(props: {
     return (
       <div className="flex flex-col items-center justify-center py-10 text-red-500" aria-live="polite">
         <AlertCircle className="mb-2 h-8 w-8" />
-        <p>{error || "搜索失败，请检查网络连接后重试"}</p>
+        <p>{error || t("statusErrorFallback")}</p>
         <Button variant="outline" className="mt-4" onClick={onRetry} disabled={loading}>
           <RefreshCw className="mr-2 h-4 w-4" />
-          重试
+          {t("retry")}
         </Button>
       </div>
     );
   }
 
   if (state === "no-results") {
-    const noResultHint = getNoResultHint(kind, subjectLabel);
+    const noResultHint = getNoResultHint(kind, subjectLabel, t);
     return (
       <div className="flex flex-col items-center justify-center py-10 text-muted-foreground" aria-live="polite">
         <SubjectKindIcon kind={kind} className="mb-2 h-8 w-8 opacity-50" />
-        <p>{noResultQuery ? `未找到“${noResultQuery}”` : `未找到相关${subjectLabel}`}</p>
+        <p>
+          {noResultQuery
+            ? t("noResultsWithQuery", { query: noResultQuery })
+            : t("noResultsGeneric", { subjectLabel })}
+        </p>
         <p className="mt-2 text-sm">{noResultHint}</p>
       </div>
     );

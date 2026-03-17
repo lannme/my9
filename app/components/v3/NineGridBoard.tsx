@@ -6,6 +6,7 @@ import { DragDropProvider } from "@dnd-kit/react";
 import { Feedback, AutoScroller, Cursor } from '@dnd-kit/dom';
 import { useSortable, isSortable } from "@dnd-kit/react/sortable";
 import { arrayMove } from "@dnd-kit/helpers";
+import { useTranslations } from "next-intl";
 import { ShareGame } from "@/lib/share/types";
 import { SubjectKind } from "@/lib/subject-kind";
 import { cn } from "@/lib/utils";
@@ -69,12 +70,13 @@ function GridCell({
   onRemoveSlot,
   onOpenComment,
 }: GridCellProps) {
+  const t = useTranslations("grid");
   return (
     <>
       <div
         role={readOnly ? undefined : "button"}
         tabIndex={readOnly ? undefined : 0}
-        aria-label={readOnly ? undefined : `选择第 ${index + 1} 格${subjectLabel}`}
+        aria-label={readOnly ? undefined : t("selectSlotAria", { index: index + 1, subjectLabel })}
         onClick={() => {
           if (readOnly) return;
           onSelectSlot?.(index);
@@ -107,7 +109,7 @@ function GridCell({
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-xs font-medium text-muted-foreground">
             <Plus className="h-4 w-4" />
-            <span>选择</span>
+            <span>{t("select")}</span>
           </div>
         )}
 
@@ -120,7 +122,7 @@ function GridCell({
         <div className="absolute bottom-2 right-2 flex items-center gap-1.5">
           <button
             type="button"
-            aria-label={`编辑第 ${index + 1} 格评论`}
+            aria-label={t("editCommentAria", { index: index + 1 })}
             onClick={(event) => {
               event.stopPropagation();
               onOpenComment?.(index);
@@ -131,7 +133,7 @@ function GridCell({
           </button>
           <button
             type="button"
-            aria-label={`移除第 ${index + 1} 格游戏`}
+            aria-label={t("removeGameAria", { index: index + 1 })}
             onClick={(event) => {
               event.stopPropagation();
               onRemoveSlot?.(index);

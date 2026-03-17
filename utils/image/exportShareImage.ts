@@ -1,7 +1,7 @@
 "use client";
 
 import QRCode from "qrcode";
-import { SubjectKind, getSubjectKindMeta } from "@/lib/subject-kind";
+import { SubjectKind, getSubjectKindMetaByLocale } from "@/lib/subject-kind";
 import { ShareGame } from "@/lib/share/types";
 
 const CANVAS_WIDTH = 1080;
@@ -27,6 +27,12 @@ function displayName(game: ShareGame | null): string {
 function displayUserName(creatorName?: string | null): string {
   const value = creatorName?.trim();
   return value || "我";
+}
+
+function detectAppLocale(): "zh" | "en" {
+  if (typeof document === "undefined") return "zh";
+  const lang = document.documentElement.lang?.toLowerCase() ?? "";
+  return lang.startsWith("en") ? "en" : "zh";
 }
 
 async function blobToImage(blob: Blob): Promise<HTMLImageElement> {
@@ -324,6 +330,7 @@ export async function generateEnhancedShareImageBlob(options: {
   creatorName?: string | null;
   origin?: string;
   showNames?: boolean;
+  locale?: "zh" | "en";
 }) {
   const origin = options.origin ?? window.location.origin;
   const shareUrl = `${origin}/${options.kind}/s/${options.shareId}`;
@@ -346,18 +353,26 @@ export async function generateEnhancedShareImageBlob(options: {
     margin: 1,
   });
   const qrImage = await dataUrlToImage(qrDataUrl);
-  const kindMeta = getSubjectKindMeta(options.kind);
+  const locale = options.locale ?? detectAppLocale();
+  const kindMeta = getSubjectKindMetaByLocale(options.kind, locale);
 
   const userName = displayUserName(options.creatorName);
   const reviewCount = options.games.filter(
     (game) => Boolean(game?.comment && game.comment.trim().length > 0)
   ).length;
 
-  const line1 = `构成${userName}的九${kindMeta.selectionUnit}${kindMeta.label}`;
+  const line1 =
+    locale === "en"
+      ? `My Nine ${kindMeta.label} · ${userName}`
+      : `构成${userName}的九${kindMeta.selectionUnit}${kindMeta.label}`;
   const line2 =
-    reviewCount > 0
-      ? `扫码查看${userName}的${reviewCount}条评价`
-      : `扫码查看${kindMeta.label}详情`;
+    locale === "en"
+      ? reviewCount > 0
+        ? `Scan to view ${reviewCount} review${reviewCount > 1 ? "s" : ""}`
+        : `Scan to view details`
+      : reviewCount > 0
+        ? `扫码查看${userName}的${reviewCount}条评价`
+        : `扫码查看${kindMeta.label}详情`;
 
   const extY = PANEL_Y + BASE_PANEL_HEIGHT;
   const extHeight = ENHANCED_EXTRA_HEIGHT;
