@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "my9",
+  "name": "my9boardgame",
   "main": "worker.js",
   "compatibility_date": "2026-03-14",
   "compatibility_flags": ["nodejs_compat"],
