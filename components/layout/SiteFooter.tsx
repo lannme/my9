@@ -103,7 +103,7 @@ export function SiteFooter({ className, kind }: SiteFooterProps) {
   );
 
   return (
-    <></>
+    <div className="text-center">Powered by <a href="https://boardgamegeek.com/" target="_blank" rel="noreferrer" className="font-semibold text-sky-600 hover:underline">BGG</a></div>
     // <footer
     //   className={cn(
     //     "pt-8 mx-auto w-full max-w-2xl text-xs text-center border-t border-border text-muted-foreground",
