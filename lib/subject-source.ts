@@ -12,7 +12,7 @@ type WorkSubjectNamespace =
   | { source: "tmdb"; entity: "movie" | "tv"; id: string }
   | { source: "itunes"; entity: "song" | "album"; id: string };
 
-export type SubjectSource = "bangumi" | "tmdb" | "itunes";
+export type SubjectSource = "bangumi" | "tmdb" | "itunes" | "bgg";
 
 export type SubjectLinkResolution = {
   source: SubjectSource;
@@ -177,6 +177,15 @@ export function resolveSubjectLink(params: {
       source: "bangumi",
       sourceLabel: "Bangumi",
       url: toBangumiPersonLink(subjectId),
+    };
+  }
+
+  if (kind === "boardgame") {
+    const bggUrl = sanitizeHttpUrl(subject.storeUrls?.bgg);
+    return {
+      source: "bgg",
+      sourceLabel: "BoardGameGeek",
+      url: bggUrl ?? `https://boardgamegeek.com/boardgame/${normalizeSubjectId(subject.id)}`,
     };
   }
 

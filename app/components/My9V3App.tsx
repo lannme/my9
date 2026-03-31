@@ -493,7 +493,9 @@ export default function My9V3App({
               ? "itunes"
               : json.source === "mixed"
                 ? "mixed"
-              : "bangumi",
+                : json.source === "bgg"
+                  ? "bgg"
+                  : "bangumi",
         kind,
         items: Array.isArray(json.items) ? json.items : [],
         noResultQuery: typeof json.noResultQuery === "string" ? json.noResultQuery : null,
@@ -722,7 +724,7 @@ export default function My9V3App({
             <ChevronRight className="h-4 w-4 text-sky-500 dark:text-sky-300" aria-hidden="true" />
           </button>
           <p className="text-sm text-amber-600 dark:text-amber-400">{/* 还没想好要做什么…… */}</p>
-          <SupportButton/>
+          <SupportButton />
         </header>
 
         {toast ? (

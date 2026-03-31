@@ -25,6 +25,7 @@ export default function HomeKindEntry() {
     work: null,
     character: null,
     person: null,
+    boardgame: null,
   });
 
   function scrollKindIntoCenter(targetKind: SubjectKind, behavior: ScrollBehavior) {

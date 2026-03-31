@@ -9,7 +9,8 @@ export type SubjectKind =
   | "song"
   | "album"
   | "character"
-  | "person";
+  | "person"
+  | "boardgame";
 
 export const DEFAULT_SUBJECT_KIND: SubjectKind = "game";
 
@@ -25,6 +26,7 @@ export const SUBJECT_KIND_ORDER: SubjectKind[] = [
   "work",
   "character",
   "person",
+  "boardgame",
 ];
 
 type KindSearchConfig = {
@@ -203,6 +205,19 @@ const KIND_META_MAP: Record<SubjectKind, SubjectKindMeta> = {
     searchIdleHint: "输入人物名称开始搜索",
     draftStorageKey: "my-nine-person:v1",
     trendLabel: "人物",
+    search: {},
+  },
+  boardgame: {
+    kind: "boardgame",
+    label: "桌游",
+    longLabel: "九款桌游",
+    selectionUnit: "款",
+    subtitle: "向世界传达你所爱的桌游。",
+    searchPlaceholder: "输入桌游名称",
+    searchDialogTitle: "搜索桌游",
+    searchIdleHint: "输入桌游名称开始搜索",
+    draftStorageKey: "my-nine-boardgame:v1",
+    trendLabel: "桌游",
     search: {},
   },
 };

@@ -40,6 +40,7 @@ export function SiteFooter({ className, kind }: SiteFooterProps) {
   const isWorkKind = kind === "work";
   const isTmdbKind = kind === "tv" || kind === "movie";
   const isAppleMusicKind = kind === "song" || kind === "album";
+  const isBggKind = kind === "boardgame";
   const sourceLink = isWorkKind ? (
     <>
       <a
@@ -77,6 +78,15 @@ export function SiteFooter({ className, kind }: SiteFooterProps) {
       className="font-semibold text-sky-600 hover:underline"
     >
       Apple Music
+    </a>
+  ) : isBggKind ? (
+    <a
+      href="https://boardgamegeek.com/"
+      target="_blank"
+      rel="noreferrer"
+      className="font-semibold text-sky-600 hover:underline"
+    >
+      BoardGameGeek
     </a>
   ) : (
     <a
@@ -183,7 +193,7 @@ export function SiteFooter({ className, kind }: SiteFooterProps) {
           </DialogContent>
         </Dialog>
         <span aria-hidden="true">|</span>
-        <SupportButton/>
+        <SupportButton />
       </div>
     </footer>
   );
