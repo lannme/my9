@@ -45,14 +45,7 @@ function displayName(game: ShareGame) {
   return game.localizedName?.trim() || game.name;
 }
 
-function shouldTopCropCover(kind: SubjectKind) {
-  return kind === "character" || kind === "person";
-}
-
 function getNoResultHint(kind: SubjectKind, subjectLabel: string): string {
-  if (kind === "song" || kind === "album") {
-    return "尝试歌手名 + 歌曲/专辑名进行搜索";
-  }
   return `尝试${subjectLabel}正式名或别名`;
 }
 
@@ -232,7 +225,7 @@ export function SearchDialog({
                         src={game.cover}
                         alt={displayName(game)}
                         fill
-                        className={cn("object-cover", shouldTopCropCover(kind) && "object-top")}
+                        className="object-cover"
                         sizes="(max-width: 768px) 40vw, 20vw"
                         loading="lazy"
                       />

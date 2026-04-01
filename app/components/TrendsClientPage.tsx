@@ -4,15 +4,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ArrowUp, ChevronsUpDown, Globe } from "lucide-react";
+import { ArrowUp, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { SubjectKindIcon } from "@/components/subject/SubjectKindIcon";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SupportButton } from "@/components/SupportButton";
 import {
   SubjectKind,
-  SUBJECT_KIND_ORDER,
   getSubjectKindMeta,
   parseSubjectKind,
 } from "@/lib/subject-kind";
@@ -71,7 +68,7 @@ const YEAR_PAGE_OPTIONS: Array<{ value: TrendYearPage; label: string }> = [
   { value: "recent", label: "现代" },
   { value: "legacy", label: "经典" },
 ];
-const DEFAULT_TREND_KIND: SubjectKind = "game";
+const DEFAULT_TREND_KIND: SubjectKind = "boardgame";
 const DEFAULT_TREND_PERIOD: TrendPeriod = "24h";
 const DEFAULT_TREND_VIEW: TrendView = "overall";
 const DEFAULT_TREND_OVERALL_PAGE = 1;
@@ -102,18 +99,7 @@ function formatPeriodLabel(period: TrendPeriod): string {
   }
 }
 
-function shouldTopCropCover(kind: SubjectKind) {
-  return kind === "character" || kind === "person";
-}
-
-function isOverallOnlyKind(kind: SubjectKind): boolean {
-  return kind === "character" || kind === "person";
-}
-
 function resolveViewByKind(kind: SubjectKind, view: TrendView): TrendView {
-  if (isOverallOnlyKind(kind)) {
-    return "overall";
-  }
   return view;
 }
 
@@ -302,7 +288,7 @@ function TrendGameMiniCard({ kind, rank, game, count, tagLabel, showReleaseYear 
                     width={48}
                     height={64}
                     unoptimized
-                    className={cn("h-full w-full object-cover", shouldTopCropCover(kind) && "object-top")}
+                    className="h-full w-full object-cover"
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-[10px] text-muted-foreground">无图</div>
@@ -410,14 +396,9 @@ export default function TrendsClientPage({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(initialError);
   const [showTopFab, setShowTopFab] = useState(false);
-  const [kindPickerOpen, setKindPickerOpen] = useState(false);
   const skipFirstEffectRef = useRef(!shouldRefetchOnMount);
   const trendsClientCacheRef = useRef<Map<string, TrendsClientCacheEntry>>(new Map());
   const trendsRequestAbortRef = useRef<AbortController | null>(null);
-  const kindTabsScrollerRef = useRef<HTMLDivElement | null>(null);
-  const kindTabRefs = useRef<Partial<Record<SubjectKind, HTMLButtonElement | null>>>({});
-  const kindTabsAutoScrolledRef = useRef(false);
-  const isCurrentKindOverallOnly = isOverallOnlyKind(kind);
   const requestOverallPage = view === "overall" ? overallPage : 1;
   const requestYearPage: TrendYearPage = view === "year" ? yearPage : "recent";
 
@@ -539,34 +520,6 @@ export default function TrendsClientPage({
   }, [kind, period]);
 
   useEffect(() => {
-    if (!isCurrentKindOverallOnly || view === "overall") {
-      return;
-    }
-    setView("overall");
-  }, [isCurrentKindOverallOnly, view]);
-
-  useEffect(() => {
-    const scroller = kindTabsScrollerRef.current;
-    const activeButton = kindTabRefs.current[kind];
-    if (!scroller || !activeButton) return;
-
-    const scrollerRect = scroller.getBoundingClientRect();
-    const activeRect = activeButton.getBoundingClientRect();
-    const targetLeft =
-      scroller.scrollLeft +
-      (activeRect.left - scrollerRect.left) -
-      (scrollerRect.width / 2 - activeRect.width / 2);
-    const maxLeft = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
-    const clampedLeft = Math.min(maxLeft, Math.max(0, targetLeft));
-
-    scroller.scrollTo({
-      left: clampedLeft,
-      behavior: kindTabsAutoScrolledRef.current ? "smooth" : "auto",
-    });
-    kindTabsAutoScrolledRef.current = true;
-  }, [kind]);
-
-  useEffect(() => {
     let ticking = false;
     let lastScrollY = Math.max(window.scrollY, 0);
 
@@ -638,16 +591,6 @@ export default function TrendsClientPage({
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  function switchKind(nextKind: SubjectKind) {
-    setKindPickerOpen(false);
-    if (nextKind === kind) return;
-    const nextView = resolveViewByKind(nextKind, view);
-    if (nextView !== view) {
-      setView(nextView);
-    }
-    setKind(nextKind);
-  }
-
   return (
     <main className="min-h-screen bg-background text-foreground">
       <section className="w-full border-b border-border bg-card shadow-sm">
@@ -675,46 +618,6 @@ export default function TrendsClientPage({
             </div>
 
             <div className="mt-auto flex flex-col items-end space-y-2 ml-auto">
-              <div className="self-end md:hidden">
-                <button
-                  type="button"
-                  onClick={() => setKindPickerOpen(true)}
-                  className="inline-flex h-8 items-center justify-center gap-1.5 rounded-full border border-border bg-card px-2.5 text-xs font-semibold text-card-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                  aria-label="切换观测类别"
-                >
-                  <SubjectKindIcon kind={kind} className="h-3.5 w-3.5" />
-                  {getSubjectKindMeta(kind).label}
-                  <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />
-                </button>
-              </div>
-
-              <div ref={kindTabsScrollerRef} className="hidden w-full max-w-full overflow-x-auto md:block">
-                <div className="inline-flex min-w-max overflow-hidden rounded-full border border-border bg-card">
-                  {SUBJECT_KIND_ORDER.map((option) => {
-                    const optionMeta = getSubjectKindMeta(option);
-                    return (
-                      <button
-                        key={option}
-                        type="button"
-                        ref={(element) => {
-                          kindTabRefs.current[option] = element;
-                        }}
-                        className={cn(
-                          "inline-flex h-8 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap border-l border-border px-2.5 text-xs font-semibold transition-colors first:border-l-0",
-                          option === kind
-                            ? "bg-foreground text-background"
-                            : "bg-card text-card-foreground hover:bg-accent hover:text-accent-foreground"
-                        )}
-                        onClick={() => switchKind(option)}
-                      >
-                        <SubjectKindIcon kind={option} className="h-3.5 w-3.5" />
-                        {optionMeta.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
               <div className="self-end overflow-x-auto md:overflow-visible">
                 <div className="inline-flex overflow-hidden rounded-full border border-border bg-card">
                   {PERIOD_OPTIONS.map((option) => {
@@ -748,25 +651,23 @@ export default function TrendsClientPage({
         <section className="mb-5 rounded-2xl border border-border bg-card p-5 shadow-sm">
           <div className="mb-4">
             <h2 className="text-lg font-bold text-foreground">排行榜</h2>
-            {!isCurrentKindOverallOnly ? (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {VIEW_OPTIONS.map((option) => (
-                  <Button
-                    key={option.value}
-                    size="sm"
-                    variant={option.value === view ? "default" : "outline"}
-                    className={
-                      option.value === view
-                        ? "rounded-full border border-foreground bg-foreground px-3 py-1.5 text-xs font-semibold text-background"
-                        : "rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-card-foreground hover:bg-accent hover:text-accent-foreground"
-                    }
-                    onClick={() => setView(option.value)}
-                  >
-                    {option.label}
-                  </Button>
-                ))}
-              </div>
-            ) : null}
+            <div className="mt-2 flex flex-wrap gap-2">
+              {VIEW_OPTIONS.map((option) => (
+                <Button
+                  key={option.value}
+                  size="sm"
+                  variant={option.value === view ? "default" : "outline"}
+                  className={
+                    option.value === view
+                      ? "rounded-full border border-foreground bg-foreground px-3 py-1.5 text-xs font-semibold text-background"
+                      : "rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-card-foreground hover:bg-accent hover:text-accent-foreground"
+                  }
+                  onClick={() => setView(option.value)}
+                >
+                  {option.label}
+                </Button>
+              ))}
+            </div>
 
             {showOverallPagination ? (
               <div className="mt-3 flex flex-wrap gap-2">
@@ -894,37 +795,8 @@ export default function TrendsClientPage({
           ) : null}
         </section>
 
-        <SiteFooter kind={kind} />
+        <SiteFooter />
       </div>
-
-      <Dialog open={kindPickerOpen} onOpenChange={setKindPickerOpen}>
-        <DialogContent className="w-[86vw] max-w-[21rem] rounded-2xl p-4 sm:max-w-md sm:p-6">
-          <DialogHeader>
-            <DialogTitle>切换观测类别</DialogTitle>
-          </DialogHeader>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-2">
-            {SUBJECT_KIND_ORDER.map((item) => {
-              const meta = getSubjectKindMeta(item);
-              const active = item === kind;
-              return (
-                <Button
-                  key={item}
-                  type="button"
-                  variant="outline"
-                  onClick={() => switchKind(item)}
-                  className={cn(
-                    "h-auto justify-start gap-3 rounded-xl px-4 py-3 text-left",
-                    active && "border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-200"
-                  )}
-                >
-                  <SubjectKindIcon kind={item} className="h-4 w-4" />
-                  <span className="font-semibold">{meta.label}</span>
-                </Button>
-              );
-            })}
-          </div>
-        </DialogContent>
-      </Dialog>
 
       <button
         type="button"

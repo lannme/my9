@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { DEFAULT_SUBJECT_KIND, SubjectKind, parseSubjectKind } from "@/lib/subject-kind";
 import { normalizeSearchQuery } from "@/lib/search/query";
-import { buildItunesSearchResponse, searchItunesSong, searchItunesAlbum } from "@/lib/itunes/search";
+import { buildItunesSearchResponse, searchItunesAlbum } from "@/lib/itunes/search";
 import { resolveItunesStorefrontForQuery } from "@/lib/itunes/storefront";
 
 const SEARCH_CDN_TTL_SECONDS = 900;
@@ -17,7 +17,7 @@ const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, max-age=0",
 };
 
-type SearchItems = Awaited<ReturnType<typeof searchItunesSong>>;
+type SearchItems = Awaited<ReturnType<typeof searchItunesAlbum>>;
 type SearchMemoryStore = {
   resultCache: Map<string, { expiresAt: number; items: SearchItems }>;
   inflight: Map<string, Promise<SearchItems>>;
@@ -174,9 +174,7 @@ async function getCachedSearchItems(query: string, kind: SubjectKind): Promise<S
     return pending;
   }
 
-  const requestPromise = (kind === "song")
-    ? searchItunesSong({ query, kind })
-    : searchItunesAlbum({ query, kind });
+  const requestPromise = searchItunesAlbum({ query, kind });
 
   memory.inflight.set(key, requestPromise);
 

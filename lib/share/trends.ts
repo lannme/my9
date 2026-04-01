@@ -11,16 +11,6 @@ import { SubjectKind } from "@/lib/subject-kind";
 const OVERALL_TREND_LIMIT = 100;
 const GROUPED_TOP_GAMES_LIMIT = 5;
 
-function getExcludedGenres(kind: SubjectKind): Set<string> {
-  if (kind === "manga") {
-    return new Set(["漫画"]);
-  }
-  if (kind === "lightnovel") {
-    return new Set(["轻小说", "小说"]);
-  }
-  return new Set();
-}
-
 function gameKey(id: string | number, name: string) {
   const idPart = String(id).trim();
   if (idPart) return idPart;
@@ -84,9 +74,8 @@ function buildOverallBuckets(shares: StoredShareV1[]): TrendBucket[] {
   }));
 }
 
-function buildGenreBuckets(shares: StoredShareV1[], kind: SubjectKind): TrendBucket[] {
+function buildGenreBuckets(shares: StoredShareV1[]): TrendBucket[] {
   const genreMap = new Map<string, Map<string, TrendGameItem>>();
-  const excludedGenres = getExcludedGenres(kind);
 
   for (const share of shares) {
     for (const game of share.games) {
@@ -123,9 +112,6 @@ function buildGenreBuckets(shares: StoredShareV1[], kind: SubjectKind): TrendBuc
 
   const buckets: TrendBucket[] = [];
   for (const [genre, games] of Array.from(genreMap.entries())) {
-    if (excludedGenres.has(genre)) {
-      continue;
-    }
     const sortedGames = sortByCount(Array.from(games.values()));
     const topGames = sortedGames.slice(0, GROUPED_TOP_GAMES_LIMIT);
     buckets.push({
@@ -203,7 +189,7 @@ export function buildTrendResponse(params: {
   kind: SubjectKind;
   shares: StoredShareV1[];
 }): TrendResponse {
-  const { period, view, kind, shares } = params;
+  const { period, view, shares } = params;
   const timestamps = shares.map((item) => item.createdAt);
   const range = {
     from: timestamps.length ? Math.min(...timestamps) : null,
@@ -213,7 +199,7 @@ export function buildTrendResponse(params: {
   let items: TrendBucket[] = [];
   switch (view) {
     case "genre":
-      items = buildGenreBuckets(shares, kind);
+      items = buildGenreBuckets(shares);
       break;
     case "decade":
       items = buildYearLikeBuckets(shares, "decade");

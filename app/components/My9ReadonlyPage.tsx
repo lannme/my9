@@ -77,7 +77,7 @@ export default function My9ReadonlyPage({ kind, shareId, initialShareData }: My9
           kind={kind}
         />
 
-        <SiteFooter className="w-full" kind={kind} />
+        <SiteFooter className="w-full" />
       </div>
     </main>
   );

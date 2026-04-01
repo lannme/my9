@@ -1382,12 +1382,7 @@ export async function getAggregatedTrendResponse(params: {
       : null;
   const overallOffset = Math.max(0, (overallPage - 1) * OVERALL_TREND_PAGE_SIZE);
   const yearFilterCondition = yearPage === "legacy" ? "d.release_year <= 2009" : "d.release_year >= 2010";
-  const genreExcludeCondition =
-    kind === "manga"
-      ? "AND genre <> '漫画'"
-      : kind === "lightnovel"
-        ? "AND genre NOT IN ('轻小说', '小说')"
-        : "";
+  const genreExcludeCondition = "";
 
   const sampleRows = (await sql.query(
     fromTimestamp > 0

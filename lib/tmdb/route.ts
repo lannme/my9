@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { DEFAULT_SUBJECT_KIND, SubjectKind, parseSubjectKind } from "@/lib/subject-kind";
-import { buildTmdbSearchResponse, searchTmdbTv, searchTmdbMovie } from "@/lib/tmdb/search";
+import { buildTmdbSearchResponse, searchTmdbTv } from "@/lib/tmdb/search";
 import { normalizeSearchQuery } from "@/lib/search/query";
 import { ShareSubject } from "@/lib/share/types";
 
@@ -187,10 +187,7 @@ async function getCachedSearchItems(query: string, kind: SubjectKind): Promise<S
     return pending;
   }
 
-  const requestPromise =
-    kind === "movie"
-      ? searchTmdbMovie({ query, kind })
-      : searchTmdbTv({ query, kind });
+  const requestPromise = searchTmdbTv({ query, kind });
   memory.inflight.set(key, requestPromise);
 
   try {

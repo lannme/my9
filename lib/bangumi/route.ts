@@ -3,8 +3,6 @@ import { DEFAULT_SUBJECT_KIND, SubjectKind, parseSubjectKind } from "@/lib/subje
 import {
   buildBangumiSearchResponse,
   searchBangumiSubjects,
-  searchBangumiCharacters,
-  searchBangumiPersons,
 } from "@/lib/bangumi/search";
 import { normalizeSearchQuery } from "@/lib/search/query";
 
@@ -191,11 +189,7 @@ async function getCachedSearchItems(query: string, kind: SubjectKind): Promise<S
     return pending;
   }
 
-  const requestPromise = kind === "character"
-    ? searchBangumiCharacters({ query })
-    : kind === "person"
-      ? searchBangumiPersons({ query })
-      : searchBangumiSubjects({ query, kind });
+  const requestPromise = searchBangumiSubjects({ query, kind });
   memory.inflight.set(key, requestPromise);
 
   try {

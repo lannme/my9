@@ -17,8 +17,6 @@ export const DEFAULT_TREND_KIND: SubjectKind = DEFAULT_SUBJECT_KIND;
 export const DEFAULT_TREND_OVERALL_PAGE = 1;
 export const DEFAULT_TREND_YEAR_PAGE: TrendYearPage = "recent";
 const MAX_TREND_OVERALL_PAGE = 5;
-const OVERALL_ONLY_TREND_KINDS = new Set<SubjectKind>(["character", "person"]);
-
 export const TRENDS_STORE_CACHE_TTL_SECONDS = 3600;
 
 type TrendSampleSummary = {
@@ -189,14 +187,11 @@ export function parseTrendView(value: string | null | undefined): TrendView {
   return DEFAULT_TREND_VIEW;
 }
 
-export function isOverallOnlyTrendKind(kind: SubjectKind): boolean {
-  return OVERALL_ONLY_TREND_KINDS.has(kind);
+export function isOverallOnlyTrendKind(): boolean {
+  return false;
 }
 
 export function resolveTrendViewByKind(kind: SubjectKind, view: TrendView): TrendView {
-  if (isOverallOnlyTrendKind(kind)) {
-    return "overall";
-  }
   return view;
 }
 

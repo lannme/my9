@@ -2,13 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronRight, ChevronsUpDown } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { SharePlatformActions } from "@/components/share/SharePlatformActions";
 import { SiteFooter } from "@/components/layout/SiteFooter";
-import { SubjectKindIcon } from "@/components/subject/SubjectKindIcon";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ActionCluster } from "@/app/components/v3/ActionCluster";
 import { CommentDialog } from "@/app/components/v3/CommentDialog";
 import { InlineToast, ToastKind } from "@/app/components/v3/InlineToast";
@@ -17,7 +14,6 @@ import { SearchDialog } from "@/app/components/v3/SearchDialog";
 import { SelectedGamesList } from "@/app/components/v3/SelectedGamesList";
 import { SupportButton } from "@/components/SupportButton";
 import {
-  SUBJECT_KIND_ORDER,
   SubjectKind,
   getSubjectKindMeta,
   getSubjectKindShareTitle,
@@ -25,7 +21,6 @@ import {
 } from "@/lib/subject-kind";
 import { normalizeSearchQuery } from "@/lib/search/query";
 import { SubjectSearchResponse, ShareGame } from "@/lib/share/types";
-import { cn } from "@/lib/utils";
 
 type ToastState = {
   kind: ToastKind;
@@ -171,7 +166,6 @@ export default function My9V3App({
   const [loadingShare, setLoadingShare] = useState(Boolean(initialShareId) && !initialShareData);
   const [savingShare, setSavingShare] = useState(false);
   const [draftHydrated, setDraftHydrated] = useState(false);
-  const [kindPickerOpen, setKindPickerOpen] = useState(false);
 
   const [toast, setToast] = useState<ToastState>(null);
   const [singleUndoSnapshot, setSingleUndoSnapshot] = useState<DraftSnapshot | null>(null);
@@ -486,16 +480,7 @@ export default function My9V3App({
 
       const nextResponse: SubjectSearchResponse = {
         ok: true,
-        source:
-          json.source === "tmdb"
-            ? "tmdb"
-            : json.source === "itunes"
-              ? "itunes"
-              : json.source === "mixed"
-                ? "mixed"
-                : json.source === "bgg"
-                  ? "bgg"
-                  : "bangumi",
+        source: "bgg",
         kind,
         items: Array.isArray(json.items) ? json.items : [],
         noResultQuery: typeof json.noResultQuery === "string" ? json.noResultQuery : null,
@@ -685,35 +670,13 @@ export default function My9V3App({
     });
   }
 
-  function switchKind(nextKind: SubjectKind) {
-    if (nextKind === kind) {
-      setKindPickerOpen(false);
-      return;
-    }
-    setKindPickerOpen(false);
-    router.push(`/${nextKind}`);
-  }
-
   return (
     <main className="min-h-screen bg-background px-4 py-16 text-foreground">
       <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-4">
         <header className="space-y-3 text-center">
-          <div className="inline-flex items-center gap-2 sm:gap-3">
-            <h1 className="whitespace-nowrap text-3xl font-bold leading-tight tracking-tight text-foreground sm:text-4xl">
+          <h1 className="whitespace-nowrap text-3xl font-bold leading-tight tracking-tight text-foreground sm:text-4xl">
               {shareTitle}
             </h1>
-            {!isReadonly ? (
-              <button
-                type="button"
-                onClick={() => setKindPickerOpen(true)}
-                className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2.5 py-1 text-xs font-semibold text-card-foreground transition-colors hover:bg-accent hover:text-accent-foreground sm:px-3 sm:py-1.5 sm:text-sm"
-                aria-label="切换填写类型"
-              >
-                <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />
-                切换
-              </button>
-            ) : null}
-          </div>
           <p className="text-sm text-muted-foreground">{kindMeta.subtitle}</p>
           <button
             type="button"
@@ -817,7 +780,7 @@ export default function My9V3App({
           onOpenComment={openComment}
         />
 
-        <SiteFooter className="w-full" kind={kind} />
+        <SiteFooter className="w-full" />
       </div>
 
       <SearchDialog
@@ -864,35 +827,6 @@ export default function My9V3App({
         onChangeSpoiler={setCommentSpoiler}
         onSave={saveComment}
       />
-
-      <Dialog open={kindPickerOpen} onOpenChange={setKindPickerOpen}>
-        <DialogContent className="w-[86vw] max-w-[21rem] rounded-2xl p-4 sm:max-w-md sm:p-6">
-          <DialogHeader>
-            <DialogTitle>切换填写类型</DialogTitle>
-          </DialogHeader>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-2">
-            {SUBJECT_KIND_ORDER.map((item) => {
-              const meta = getSubjectKindMeta(item);
-              const active = item === kind;
-              return (
-                <Button
-                  key={item}
-                  type="button"
-                  variant="outline"
-                  onClick={() => switchKind(item)}
-                  className={cn(
-                    "h-auto justify-start gap-3 rounded-xl px-4 py-3 text-left",
-                    active && "border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-200"
-                  )}
-                >
-                  <SubjectKindIcon kind={item} className="h-4 w-4" />
-                  <span className="font-semibold">{meta.label}</span>
-                </Button>
-              );
-            })}
-          </div>
-        </DialogContent>
-      </Dialog>
     </main>
   );
 }

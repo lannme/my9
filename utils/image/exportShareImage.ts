@@ -98,10 +98,6 @@ function drawCoverFit(
   ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
 }
 
-function shouldTopCropCover(kind?: SubjectKind) {
-  return kind === "character" || kind === "person";
-}
-
 function drawEmptySlot(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -243,9 +239,7 @@ function drawGrid(
     ctx.clip();
     const cover = covers[index];
     if (cover) {
-      drawCoverFit(ctx, cover, x, y, slotWidth, slotHeight, {
-        alignTop: shouldTopCropCover(kind),
-      });
+      drawCoverFit(ctx, cover, x, y, slotWidth, slotHeight);
     } else {
       drawEmptySlot(ctx, x, y, slotWidth, slotHeight);
     }

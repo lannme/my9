@@ -222,7 +222,7 @@ export default function My9ReadonlyApp({
           onOpenComment={() => undefined}
         />
 
-        <SiteFooter className="w-full" kind={kind} />
+        <SiteFooter className="w-full" />
       </div>
     </main>
   );

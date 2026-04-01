@@ -54,15 +54,10 @@ interface GridCellProps {
   onOpenComment?: (index: number) => void;
 }
 
-function shouldTopCropCover(kind?: SubjectKind) {
-  return kind === "character" || kind === "person";
-}
-
 function GridCell({
   game,
   index,
   subjectLabel,
-  kind,
   readOnly,
   isDragSource,
   onSelectSlot,
@@ -98,10 +93,7 @@ function GridCell({
             alt={displayTitle(game)}
             fill
             unoptimized
-            className={cn(
-              "absolute inset-0 object-cover select-none [-webkit-touch-callout:none]",
-              shouldTopCropCover(kind) && "object-top"
-            )}
+            className="absolute inset-0 object-cover select-none [-webkit-touch-callout:none]"
             sizes="(max-width: 640px) 30vw, (max-width: 1024px) 22vw, 180px"
           />
         ) : (

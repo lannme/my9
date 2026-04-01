@@ -12,12 +12,10 @@ import { cn } from "@/lib/utils";
 import { FaWeibo, FaGithub } from "react-icons/fa";
 import { SiBilibili } from "react-icons/si";
 import { SupportButton } from "@/components/SupportButton";
-import type { SubjectKind } from "@/lib/subject-kind";
 import { getPublicSiteUrl, getSiteHostname } from "@/lib/site-url";
 
 interface SiteFooterProps {
   className?: string;
-  kind?: SubjectKind;
 }
 
 function buildTallyEmbedUrl(value: string): string {
@@ -32,54 +30,12 @@ function buildTallyEmbedUrl(value: string): string {
   }
 }
 
-export function SiteFooter({ className, kind }: SiteFooterProps) {
+export function SiteFooter({ className }: SiteFooterProps) {
   const tallyFormUrl =
     process.env.NEXT_PUBLIC_TALLY_FORM_URL?.trim();
   const tallyEmbedUrl = tallyFormUrl ? buildTallyEmbedUrl(tallyFormUrl) : "";
   const hitsHost = getSiteHostname(getPublicSiteUrl());
-  const isWorkKind = kind === "work";
-  const isTmdbKind = kind === "tv" || kind === "movie";
-  const isAppleMusicKind = kind === "song" || kind === "album";
-  const isBggKind = kind === "boardgame";
-  const sourceLink = isWorkKind ? (
-    <>
-      <a
-        href="https://bangumi.tv/"
-        target="_blank"
-        rel="noreferrer"
-        className="font-semibold text-sky-600 hover:underline"
-      >
-        Bangumi
-      </a>
-      <span aria-hidden="true">+</span>
-      <a
-        href="https://www.themoviedb.org/"
-        target="_blank"
-        rel="noreferrer"
-        className="font-semibold text-sky-600 hover:underline"
-      >
-        TMDB
-      </a>
-    </>
-  ) : isTmdbKind ? (
-    <a
-      href="https://www.themoviedb.org/"
-      target="_blank"
-      rel="noreferrer"
-      className="font-semibold text-sky-600 hover:underline"
-    >
-      TMDB
-    </a>
-  ) : isAppleMusicKind ? (
-    <a
-      href="https://music.apple.com/"
-      target="_blank"
-      rel="noreferrer"
-      className="font-semibold text-sky-600 hover:underline"
-    >
-      Apple Music
-    </a>
-  ) : isBggKind ? (
+  const sourceLink = (
     <a
       href="https://boardgamegeek.com/"
       target="_blank"
@@ -87,15 +43,6 @@ export function SiteFooter({ className, kind }: SiteFooterProps) {
       className="font-semibold text-sky-600 hover:underline"
     >
       BoardGameGeek
-    </a>
-  ) : (
-    <a
-      href="https://bangumi.tv/"
-      target="_blank"
-      rel="noreferrer"
-      className="font-semibold text-sky-600 hover:underline"
-    >
-      Bangumi
     </a>
   );
 

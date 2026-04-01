@@ -238,7 +238,7 @@ export function buildWorkSearchResponse(params: {
   return {
     ok: true,
     source: "mixed",
-    kind: "work",
+    kind: "boardgame",
     items,
     noResultQuery: items.length === 0 && query.trim() ? query : null,
   };
@@ -254,14 +254,14 @@ export async function searchWorkSubjects(params: {
   }
 
   const [bangumiResult, tmdbMovieResult, tmdbTvResult] = await Promise.allSettled([
-    withTimeout(searchBangumiSubjects({ query: q, kind: "work" }), SOURCE_TIMEOUT_MS, "bangumi"),
+    withTimeout(searchBangumiSubjects({ query: q, kind: "boardgame" }), SOURCE_TIMEOUT_MS, "bangumi"),
     withTimeout(
-      searchTmdbMovie({ query: q, kind: "movie" }).then((items) => withNamespacedId(items, "tmdb", "movie")),
+      searchTmdbMovie({ query: q, kind: "boardgame" }).then((items) => withNamespacedId(items, "tmdb", "movie")),
       SOURCE_TIMEOUT_MS,
       "tmdb:movie"
     ),
     withTimeout(
-      searchTmdbTv({ query: q, kind: "tv" }).then((items) => withNamespacedId(items, "tmdb", "tv")),
+      searchTmdbTv({ query: q, kind: "boardgame" }).then((items) => withNamespacedId(items, "tmdb", "tv")),
       SOURCE_TIMEOUT_MS,
       "tmdb:tv"
     ),
