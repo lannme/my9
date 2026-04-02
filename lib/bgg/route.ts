@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { DEFAULT_SUBJECT_KIND, SubjectKind, parseSubjectKind } from "@/lib/subject-kind";
 import { normalizeSearchQuery } from "@/lib/search/query";
-import { buildBggSearchResponse, searchBggBoardgames } from "@/lib/bgg/search";
-import type { ShareSubject } from "@/lib/share/types";
+import { buildBggSearchResponse, searchBggBoardgames, type BggSearchResult } from "@/lib/bgg/search";
 
 const SEARCH_CDN_TTL_SECONDS = 900;
 const SEARCH_STALE_TTL_SECONDS = 86400;
@@ -17,10 +16,9 @@ const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, max-age=0",
 };
 
-type SearchItems = ShareSubject[];
 type SearchMemoryStore = {
-  resultCache: Map<string, { expiresAt: number; items: SearchItems }>;
-  inflight: Map<string, Promise<SearchItems>>;
+  resultCache: Map<string, { expiresAt: number; result: BggSearchResult }>;
+  inflight: Map<string, Promise<BggSearchResult>>;
   rateLimit: Map<string, { windowStart: number; count: number }>;
   rateLimitBlockedCount: number;
 };
@@ -42,7 +40,7 @@ function getSearchMemoryStore(): SearchMemoryStore {
   return g.__MY9_BGG_SEARCH_MEMORY__;
 }
 
-function trimSearchMemoryCache(cache: Map<string, { expiresAt: number; items: SearchItems }>) {
+function trimSearchMemoryCache(cache: Map<string, { expiresAt: number; result: BggSearchResult }>) {
   while (cache.size > SEARCH_MEMORY_CACHE_MAX) {
     const firstKey = cache.keys().next().value;
     if (!firstKey) return;
@@ -146,13 +144,13 @@ function createSearchCacheHeaders() {
   };
 }
 
-async function getCachedSearchItems(query: string, kind: SubjectKind): Promise<SearchItems> {
+async function getCachedSearchResult(query: string, kind: SubjectKind): Promise<BggSearchResult> {
   const memory = getSearchMemoryStore();
   const key = toSearchCacheKey(kind, query);
   const now = Date.now();
 
   const cached = memory.resultCache.get(key);
-  if (cached && cached.expiresAt > now) return cached.items;
+  if (cached && cached.expiresAt > now) return cached.result;
   if (cached) memory.resultCache.delete(key);
 
   const pending = memory.inflight.get(key);
@@ -162,13 +160,13 @@ async function getCachedSearchItems(query: string, kind: SubjectKind): Promise<S
   memory.inflight.set(key, requestPromise);
 
   try {
-    const items = await requestPromise;
+    const result = await requestPromise;
     memory.resultCache.set(key, {
       expiresAt: now + SEARCH_MEMORY_TTL_MS,
-      items,
+      result,
     });
     trimSearchMemoryCache(memory.resultCache);
-    return items;
+    return result;
   } finally {
     if (memory.inflight.get(key) === requestPromise) {
       memory.inflight.delete(key);
@@ -205,8 +203,8 @@ export async function handleBggSearchRequest(request: Request) {
   }
 
   try {
-    const items = await getCachedSearchItems(query, kind);
-    return NextResponse.json(buildBggSearchResponse({ query, kind, items }), {
+    const { items, thingMap } = await getCachedSearchResult(query, kind);
+    return NextResponse.json(buildBggSearchResponse({ query, kind, items, thingMap }), {
       headers: createSearchCacheHeaders(),
     });
   } catch (error) {

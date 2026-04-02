@@ -1,30 +1,34 @@
-import { XMLParser } from "fast-xml-parser";
 import type { SubjectKind } from "@/lib/subject-kind";
 import type { ShareSubject, SubjectSearchResponse } from "@/lib/share/types";
+import {
+  searchItems,
+  fetchThingItems,
+  bggToArray,
+  type BggThingItem,
+  type BggName,
+  type BggLink,
+} from "@/lib/bgg/bgg-api";
 
-const BGG_API_BASE = "https://boardgamegeek.com/xmlapi2";
-const BGG_APP_TOKEN = process.env.BGG_APP_TOKEN ?? "";
-const BGG_SEARCH_LIMIT = 20;
+const BGG_SEARCH_LIMIT = 50;
+const BGG_RESULT_LIMIT = 20;
+const BGG_THING_BATCH_SIZE = 20;
 
-const xmlParser = new XMLParser({
-  ignoreAttributes: false,
-  attributeNamePrefix: "",
-  textNodeName: "_text",
-});
+const CJK_RE = /[\u4e00-\u9fff\u3400-\u4dbf]/;
+const JAPANESE_KANA_RE = /[\u3040-\u309f\u30a0-\u30ff]/;
+const KOREAN_RE = /[\uac00-\ud7af\u1100-\u11ff]/;
 
-function authHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {
-    Accept: "text/xml",
-  };
-  if (BGG_APP_TOKEN) {
-    headers["Authorization"] = `Bearer ${BGG_APP_TOKEN}`;
-  }
-  return headers;
+function isChinese(text: string): boolean {
+  return CJK_RE.test(text) && !JAPANESE_KANA_RE.test(text) && !KOREAN_RE.test(text);
 }
 
-function toArray<T>(value: T | T[] | undefined | null): T[] {
-  if (value == null) return [];
-  return Array.isArray(value) ? value : [value];
+const TRAILING_LATIN_PAREN_RE = /\s*\([^()]*[A-Za-z][^()]*\)\s*/g;
+const TRAILING_YEAR_PAREN_RE = /\s*\(\d{4}\)\s*/g;
+
+function cleanChineseName(raw: string): string {
+  return raw
+    .replace(TRAILING_LATIN_PAREN_RE, "")
+    .replace(TRAILING_YEAR_PAREN_RE, "")
+    .trim();
 }
 
 function extractYear(raw?: string | null): number | undefined {
@@ -38,72 +42,19 @@ function normalizeText(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, "");
 }
 
-function scoreCandidate(query: string, subject: ShareSubject): number {
-  const q = normalizeText(query);
-  if (!q) return 0;
-  const candidates = [subject.localizedName || "", subject.name];
-  let score = 0;
-  for (const text of candidates) {
-    const normalized = normalizeText(text);
-    if (!normalized) continue;
-    if (normalized === q) score += 100;
-    if (normalized.startsWith(q)) score += 60;
-    if (normalized.includes(q)) score += 25;
-  }
-  if (typeof subject.releaseYear === "number") {
-    if (String(subject.releaseYear).includes(q)) score += 5;
-  }
-  return score;
-}
-
-function reorderByPromotedIds<T extends { id: number | string }>(
-  items: T[],
-  promotedIds: Array<number | string>,
-): T[] {
-  if (items.length === 0 || promotedIds.length === 0) return items;
-  const promotedSet = new Set(promotedIds.map((id) => String(id)));
-  const promoted: T[] = [];
-  const rest: T[] = [];
-  for (const item of items) {
-    if (promotedSet.has(String(item.id))) {
-      promoted.push(item);
-    } else {
-      rest.push(item);
-    }
-  }
-  return [...promoted, ...rest];
-}
-
-type BggSearchItem = {
-  id?: string;
-  type?: string;
-  name?: { value?: string; type?: string } | Array<{ value?: string; type?: string }>;
-  yearpublished?: { value?: string };
-};
-
-type BggThingItem = {
-  id?: string;
-  type?: string;
-  thumbnail?: string;
-  image?: string;
-  name?: { value?: string; type?: string } | Array<{ value?: string; type?: string }>;
-  yearpublished?: { value?: string };
-  link?: Array<{ type?: string; value?: string }> | { type?: string; value?: string };
-};
-
 function resolveName(
-  nameField: { value?: string; type?: string } | Array<{ value?: string; type?: string }> | undefined,
-): { primary: string; alternate: string } {
-  const names = toArray(nameField);
+  nameField: BggName | BggName[] | undefined,
+): { primary: string; chineseName: string } {
+  const names = bggToArray(nameField);
   const primary = names.find((n) => n.type === "primary")?.value ?? names[0]?.value ?? "";
-  const alternate = names.find((n) => n.type === "alternate")?.value ?? "";
-  return { primary, alternate };
+  const rawChinese =
+    names.find((n) => n.type === "alternate" && n.value && isChinese(n.value))?.value ?? "";
+  const chineseName = rawChinese ? cleanChineseName(rawChinese) : "";
+  return { primary, chineseName };
 }
 
-function extractGenres(
-  linkField: Array<{ type?: string; value?: string }> | { type?: string; value?: string } | undefined,
-): string[] {
-  const links = toArray(linkField);
+function extractGenres(linkField: BggLink | BggLink[] | undefined): string[] {
+  const links = bggToArray(linkField);
   return links
     .filter((l) => l.type === "boardgamecategory")
     .map((l) => l.value ?? "")
@@ -111,40 +62,83 @@ function extractGenres(
     .slice(0, 3);
 }
 
-async function fetchBggXml(path: string): Promise<string> {
-  const response = await fetch(`${BGG_API_BASE}${path}`, {
-    headers: authHeaders(),
-  });
-  if (!response.ok) {
-    throw new Error(`BGG API error: ${response.status} ${response.statusText}`);
+function parseFloat0(raw?: string): number {
+  if (!raw) return 0;
+  const n = Number.parseFloat(raw);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function parseInt0(raw?: string): number {
+  if (!raw) return 0;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) ? n : 0;
+}
+
+interface ScoredSubject {
+  subject: ShareSubject;
+  score: number;
+}
+
+function scoreCandidate(
+  query: string,
+  subject: ShareSubject,
+  stats: { numComments: number; bayesAverage: number; usersRated: number },
+): number {
+  const q = normalizeText(query);
+  if (!q) return 0;
+
+  let score = 0;
+
+  const candidates = [subject.localizedName || "", subject.name];
+  for (const text of candidates) {
+    const normalized = normalizeText(text);
+    if (!normalized) continue;
+    if (normalized === q) score += 200;
+    else if (normalized.startsWith(q)) score += 120;
+    else if (normalized.includes(q)) score += 50;
   }
-  return response.text();
+
+  if (stats.bayesAverage > 0) {
+    score += stats.bayesAverage * 10;
+  }
+
+  if (stats.numComments > 0) {
+    score += Math.min(Math.log10(stats.numComments + 1) * 20, 100);
+  }
+
+  if (stats.usersRated > 0) {
+    score += Math.min(Math.log10(stats.usersRated + 1) * 15, 75);
+  }
+
+  return score;
+}
+
+export interface BggSearchResult {
+  items: ShareSubject[];
+  thingMap: Map<string, BggThingItem>;
 }
 
 export async function searchBggBoardgames(params: {
   query: string;
-}): Promise<ShareSubject[]> {
+}): Promise<BggSearchResult> {
   const q = params.query.trim();
-  if (!q) return [];
+  if (!q) return { items: [], thingMap: new Map() };
 
-  const xml = await fetchBggXml(
-    `/search?query=${encodeURIComponent(q)}&type=boardgame`,
-  );
-  const parsed = xmlParser.parse(xml);
-  const rawItems: BggSearchItem[] = toArray(parsed?.items?.item).slice(0, BGG_SEARCH_LIMIT);
+  const searchResult = await searchItems({ query: q, type: "boardgame" });
+  const rawItems = bggToArray(searchResult.items?.item).slice(0, BGG_SEARCH_LIMIT);
 
-  if (rawItems.length === 0) return [];
+  if (rawItems.length === 0) return { items: [], thingMap: new Map() };
 
-  const ids = rawItems.map((item) => item.id).filter(Boolean).join(",");
-  if (!ids) return [];
-
-  const thingXml = await fetchBggXml(`/thing?id=${ids}&type=boardgame`);
-  const thingParsed = xmlParser.parse(thingXml);
-  const thingItems: BggThingItem[] = toArray(thingParsed?.items?.item);
+  const allIds = rawItems.map((item) => item.id).filter(Boolean) as string[];
+  if (allIds.length === 0) return { items: [], thingMap: new Map() };
 
   const thingMap = new Map<string, BggThingItem>();
-  for (const item of thingItems) {
-    if (item.id) thingMap.set(String(item.id), item);
+  for (let i = 0; i < allIds.length; i += BGG_THING_BATCH_SIZE) {
+    const batchIds = allIds.slice(i, i + BGG_THING_BATCH_SIZE).join(",");
+    const thingResult = await fetchThingItems({ id: batchIds, type: "boardgame", stats: 1 });
+    for (const item of bggToArray(thingResult.items?.item)) {
+      if (item.id) thingMap.set(String(item.id), item);
+    }
   }
 
   const results: ShareSubject[] = [];
@@ -152,17 +146,22 @@ export async function searchBggBoardgames(params: {
     const id = searchItem.id;
     if (!id) continue;
     const thing = thingMap.get(id);
-    const { primary, alternate } = resolveName(thing?.name ?? searchItem.name);
+    const nameField =
+      thing?.name ??
+      (searchItem.name ? { value: searchItem.name.value, type: searchItem.name.type } : undefined);
+    const { primary, chineseName } = resolveName(nameField);
     if (!primary) continue;
 
     const cover = thing?.image || thing?.thumbnail || null;
-    const releaseYear = extractYear(thing?.yearpublished?.value ?? searchItem.yearpublished?.value);
+    const releaseYear = extractYear(
+      thing?.yearpublished?.value ?? searchItem.yearpublished?.value,
+    );
     const genres = thing ? extractGenres(thing.link) : [];
 
     results.push({
       id,
       name: primary,
-      localizedName: alternate || undefined,
+      localizedName: chineseName || undefined,
       cover,
       releaseYear,
       genres: genres.length > 0 ? genres : undefined,
@@ -172,29 +171,35 @@ export async function searchBggBoardgames(params: {
     });
   }
 
-  return results;
+  return { items: results, thingMap };
 }
 
 export function buildBggSearchResponse(params: {
   query: string;
   kind: SubjectKind;
   items: ShareSubject[];
+  thingMap?: Map<string, BggThingItem>;
 }): SubjectSearchResponse {
-  const { query, kind, items } = params;
-  const ranked = items
-    .map((item) => ({ id: item.id, score: scoreCandidate(query, item) }))
-    .filter((item) => item.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 3)
-    .map((item) => item.id);
-  const promotedIds = ranked.length > 0 ? ranked : items.slice(0, 2).map((item) => item.id);
-  const orderedItems = reorderByPromotedIds(items, promotedIds);
+  const { query, kind, items, thingMap } = params;
+
+  const scored: ScoredSubject[] = items.map((subject) => {
+    const thing = thingMap?.get(String(subject.id));
+    const ratings = thing?.statistics?.ratings;
+    const stats = {
+      numComments: parseInt0(ratings?.numcomments?.value),
+      bayesAverage: parseFloat0(ratings?.bayesaverage?.value),
+      usersRated: parseInt0(ratings?.usersrated?.value),
+    };
+    return { subject, score: scoreCandidate(query, subject, stats) };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
 
   return {
     ok: true,
     source: "bgg",
     kind,
-    items: orderedItems,
+    items: scored.map((s) => s.subject).slice(0, BGG_RESULT_LIMIT),
     noResultQuery: items.length === 0 && query.trim() ? query : null,
   };
 }
