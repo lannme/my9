@@ -45,6 +45,8 @@ export default function OpsPanel() {
   const [stats, setStats] = useState<BggStats | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [running, setRunning] = useState<string | null>(null);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const logIdRef = useRef(0);
 
   const addLog = useCallback(
@@ -108,13 +110,20 @@ export default function OpsPanel() {
 
   const runImportCsv = useCallback(async () => {
     if (running) return;
+    if (!csvFile) {
+      addLog("warn", "请先选择 CSV 文件");
+      return;
+    }
     setRunning("import");
-    addLog("info", "开始执行 CSV 冷启动导入...");
+    addLog("info", `开始上传并导入 CSV 文件：${csvFile.name}（${(csvFile.size / 1024 / 1024).toFixed(1)} MB）...`);
     try {
+      const formData = new FormData();
+      formData.append("file", csvFile);
+      formData.append("batchSize", "500");
       const res = await fetch(`${API_BASE}/import-csv`, {
         method: "POST",
-        headers: { ...authHeaders(), "Content-Type": "application/json" },
-        body: JSON.stringify({ batchSize: 500 }),
+        headers: authHeaders(),
+        body: formData,
       });
       const data: TaskResult = await res.json();
       if (data.ok && data.result) {
@@ -132,7 +141,7 @@ export default function OpsPanel() {
     } finally {
       setRunning(null);
     }
-  }, [running, addLog, authHeaders, fetchStats]);
+  }, [running, csvFile, addLog, authHeaders, fetchStats]);
 
   const runEnrich = useCallback(async () => {
     if (running) return;
@@ -254,14 +263,45 @@ export default function OpsPanel() {
         <div className="rounded-lg border border-border bg-card p-4 space-y-4">
           <h2 className="text-base font-semibold text-foreground">运维操作</h2>
           <div className="grid gap-3 md:grid-cols-2">
-            <ActionCard
-              title="1. CSV 冷启动导入"
-              description="从 data/boardgames_ranks.csv 批量导入桌游基础数据到数据库"
-              buttonText={running === "import" ? "导入中..." : "执行导入"}
-              onClick={runImportCsv}
-              disabled={!!running}
-              variant="default"
-            />
+            <div className="rounded-md border border-border bg-background p-4 space-y-3">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">1. CSV 冷启动导入</h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  选择 boardgames_ranks.csv 文件并上传，批量导入桌游基础数据到数据库
+                </p>
+              </div>
+              <div className="space-y-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] ?? null;
+                    setCsvFile(f);
+                    if (f) addLog("info", `已选择文件：${f.name}（${(f.size / 1024 / 1024).toFixed(1)} MB）`);
+                  }}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={!!running}
+                >
+                  {csvFile ? `📄 ${csvFile.name}` : "选择 CSV 文件"}
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={runImportCsv}
+                  disabled={!!running || !csvFile}
+                  className="w-full"
+                >
+                  {running === "import" ? "导入中..." : "上传并导入"}
+                </Button>
+              </div>
+            </div>
             <ActionCard
               title="2. BGG 详情补充"
               description="为缺少封面的高分桌游从 BGG API 拉取详情（封面、中文名、类型）"

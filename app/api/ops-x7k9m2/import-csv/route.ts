@@ -1,8 +1,5 @@
 import { NextResponse } from "next/server";
-import { neon } from "@neondatabase/serverless";
-import { createReadStream } from "node:fs";
-import { createInterface } from "node:readline";
-import { resolve } from "node:path";
+import { _getSqlClient, _ensureSchema, BGG_BOARDGAME_TABLE } from "@/lib/share/storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,28 +10,6 @@ function isAuthorized(request: Request): boolean {
   const authorization = request.headers.get("authorization");
   return authorization === `Bearer ${cronSecret}`;
 }
-
-function buildDatabaseUrl(): string | null {
-  const readEnv = (...names: string[]) => {
-    for (const name of names) {
-      const v = process.env[name];
-      if (typeof v === "string" && v.trim()) return v.trim();
-    }
-    return null;
-  };
-  const host = readEnv("NEON_DATABASE_PGHOST_UNPOOLED", "NEON_DATABASE_PGHOST");
-  const user = readEnv("NEON_DATABASE_PGUSER");
-  const password = readEnv("NEON_DATABASE_PGPASSWORD", "NEON_DATABASE_POSTGRES_PASSWORD");
-  const database = readEnv("NEON_DATABASE_PGDATABASE", "NEON_DATABASE_POSTGRES_DATABASE");
-  if (!host || !user || !password || !database) return null;
-  let hostWithPort = host;
-  const port = readEnv("NEON_DATABASE_PGPORT");
-  if (port && !host.includes(":")) hostWithPort = `${host}:${port}`;
-  const sslMode = readEnv("NEON_DATABASE_PGSSLMODE") ?? "require";
-  return `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${hostWithPort}/${encodeURIComponent(database)}?sslmode=${encodeURIComponent(sslMode)}`;
-}
-
-const BGG_TABLE = "my9_bgg_boardgame_v1";
 
 type CsvRow = {
   bgg_id: string;
@@ -157,7 +132,7 @@ function buildBatchUpsertQuery(rows: CsvRow[]): { query: string; params: (string
   }
 
   const query = `
-    INSERT INTO ${BGG_TABLE} (
+    INSERT INTO ${BGG_BOARDGAME_TABLE} (
       bgg_id, name, year_published, bgg_rank,
       bayes_average, average, users_rated, is_expansion,
       abstracts_rank, cgs_rank, childrensgames_rank, familygames_rank,
@@ -188,29 +163,65 @@ function buildBatchUpsertQuery(rows: CsvRow[]): { query: string; params: (string
   return { query, params };
 }
 
+async function extractCsvText(request: Request): Promise<{ csvText: string; batchSize: number }> {
+  let batchSize = 500;
+  const contentType = request.headers.get("content-type") ?? "";
+
+  if (contentType.includes("multipart/form-data")) {
+    const formData = await request.formData();
+    const file = formData.get("file");
+    if (!file || !(file instanceof File)) {
+      throw new Error("缺少 file 字段或文件无效");
+    }
+    const csvText = await file.text();
+    const batchSizeRaw = formData.get("batchSize");
+    if (batchSizeRaw) {
+      const n = Number(batchSizeRaw);
+      if (Number.isFinite(n) && n > 0) batchSize = Math.trunc(n);
+    }
+    return { csvText, batchSize };
+  }
+
+  if (contentType.includes("text/csv") || contentType.includes("text/plain")) {
+    const csvText = await request.text();
+    return { csvText, batchSize };
+  }
+
+  throw new Error(`不支持的 Content-Type: ${contentType}，请使用 multipart/form-data 上传文件`);
+}
+
 export async function POST(request: Request) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 
-  const databaseUrl = buildDatabaseUrl();
-  if (!databaseUrl) {
-    return NextResponse.json({ ok: false, error: "database not configured" }, { status: 500 });
+  const sql = _getSqlClient();
+  if (!sql || !(await _ensureSchema())) {
+    return NextResponse.json({ ok: false, error: "database not available" }, { status: 503 });
   }
 
-  let batchSize = 500;
+  let csvText: string;
+  let batchSize: number;
   try {
-    const body = await request.json();
-    if (typeof body.batchSize === "number" && Number.isFinite(body.batchSize)) {
-      batchSize = Math.max(1, Math.trunc(body.batchSize));
-    }
-  } catch {
-    /* use default */
+    const result = await extractCsvText(request);
+    csvText = result.csvText;
+    batchSize = result.batchSize;
+  } catch (e) {
+    return NextResponse.json(
+      { ok: false, error: e instanceof Error ? e.message : String(e) },
+      { status: 400 },
+    );
+  }
+
+  if (!csvText.trim()) {
+    return NextResponse.json(
+      { ok: false, error: "CSV 文件内容为空" },
+      { status: 400 },
+    );
   }
 
   try {
-    const sql = neon(databaseUrl);
-    const absolutePath = resolve(process.cwd(), "data/boardgames_ranks.csv");
+    const lines = csvText.split(/\r?\n/);
 
     const startTime = Date.now();
     let headerMap: Record<string, number> | null = null;
@@ -220,12 +231,9 @@ export async function POST(request: Request) {
     let batchCount = 0;
     let upsertedRows = 0;
 
-    const rl = createInterface({
-      input: createReadStream(absolutePath, "utf8"),
-      crlfDelay: Infinity,
-    });
+    for (const line of lines) {
+      if (!line.trim()) continue;
 
-    for await (const line of rl) {
       if (!headerMap) {
         const headers = parseCsvLine(line).map((h) => h.trim().toLowerCase());
         headerMap = {};
@@ -295,7 +303,7 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json(
       { ok: false, error: error instanceof Error ? error.message : "import failed" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
