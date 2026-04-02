@@ -3,8 +3,8 @@
 import { spawn } from "node:child_process";
 
 const DEFAULT_SITE_URLS = {
-  production: "https://my9.shatranj.space",
-  test: "https://my9test.shatranj.space",
+  production: "https://my9boardgame.lannme00.workers.dev",
+  test: "https://my9boardgame.lannme00.workers.dev",
 };
 const SHELL_SITE_URL = process.env.SITE_URL;
 const SHELL_PUBLIC_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL;

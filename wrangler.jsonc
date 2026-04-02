@@ -1,17 +1,12 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "my9",
+  "name": "my9boardgame",
   "main": "worker.js",
   "compatibility_date": "2026-03-14",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
   "preview_urls": true,
-  "routes": [
-    {
-      "pattern": "my9.shatranj.space",
-      "custom_domain": true
-    }
-  ],
+  "routes": [],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
@@ -47,12 +42,7 @@
   ],
   "env": {
     "test": {
-      "routes": [
-        {
-          "pattern": "my9test.shatranj.space",
-          "custom_domain": true
-        }
-      ],
+      "routes": [],
       "vars": {
         "MY9_SHARE_VIEW_ANALYTICS_DATASET": "my9_share_views_test_v1",
         "MY9_SHARE_VIEW_ROLLUP_DAYS": "2"
