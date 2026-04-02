@@ -3,10 +3,11 @@
 本指南面向贡献者与自动化代理，目标是与当前代码库实践保持一致。
 
 ## 项目结构与模块组织
+
 - `app/`：App Router 页面与 API 路由。
   - 首页：`/`（`app/page.tsx`，类型选择入口）
   - 填写页：`/[kind]`
-  - 分享只读页：`/[kind]/s/[shareId]`
+  - 分享只读页：`/[kind]/s/[shareId]con`
   - 趋势页：`/trends`
   - API：`app/api/*`
 - `app/components/`：主业务组件（如 `My9V3App`、`v3/*`）。
@@ -19,6 +20,7 @@
 - `screenshot/`：验收截图产物。
 
 ## 构建、开发与测试命令
+
 - `npm install`：安装依赖（建议 Node 20.9+）。
 - `npm run dev`：本地开发（默认 `http://localhost:3000`）。
 - `npm run build`：生产构建。
@@ -37,9 +39,11 @@
 - `node scripts/archive-shares-cold.mjs`：归档 30 天前热数据到 R2，并清理过旧日/小时粒度趋势计数。
 
 说明：
+
 - 仓库以 `npm` + `package-lock.json` 为准，避免切换包管理器引发锁文件噪音。
 
 ## Agent 端口与测试约定（强约束）
+
 - `3000` 端口保留给开发者手动调试，自动化代理不得占用、停止或清理该端口进程。
 - 自动化测试统一使用 `3001`。
 - Playwright 通过 `scripts/playwright-webserver.cjs` 启动：
@@ -48,17 +52,20 @@
 - 不要删除或覆盖开发者本地使用的 `.next`。
 
 ## 代码风格与实现约定
+
 - 语言：TypeScript（`strict`），路径别名 `@/*`。
 - 样式：Tailwind CSS；使用 `cn(...)` 合并类名。
 - 组件与文件命名遵循现有风格（PascalCase 组件，`components/ui` 下文件名小写）。
 - 优先做最小改动，保持当前交互与文案风格一致。
 
 ## 测试实践（当前状态）
+
 - 本仓库已配置 Playwright。
 - 新增/修改交互时，优先补充或更新 `tests/v3-interaction.spec.ts`。
 - 涉及布局问题时，可补截图验证（保存到 `screenshot/`）。
 
 ## 环境变量与外部服务
+
 - 在 `.env.local`（勿提交）中配置：
   - `CLOUDFLARE_API_TOKEN`
   - `CLOUDFLARE_ACCOUNT_ID`
@@ -94,6 +101,7 @@
 - OpenNext Cloudflare 当前不建议把原生 Windows PowerShell 作为正式构建/部署环境；发布前至少在 Linux CI 或 WSL2 上验证一次 `npm run cf:build`。
 
 ## 分享存储 v2 运维
+
 - 迁移脚本默认读取 `my9_shares_v1`，并写入 `my9_share_registry_v2` / `my9_share_alias_v1` / `my9_subject_dim_v1`；当前趋势表需通过 `node scripts/rebuild-trends-kind-v3.mjs` 单独重建到 `my9_trend_subject_kind_*_v3`。
 - 迁移完成后先执行 `node scripts/verify-shares-v2-migration.mjs`；仅当 `missing_count=0` 且 `orphan_alias_count=0` 才允许考虑关闭 v1 兜底。
 - 日常归档由 Cloudflare Workers Cron 调度 `worker.js` 中的 `scheduled()`，当前配置在 `wrangler.jsonc`（`5 16 * * *`，即北京时间 `00:05`，每天一次）。
@@ -102,9 +110,12 @@
 - 生产切换顺序：`v2 优先 + v1 兜底` -> 全量迁移与校验 -> 关闭兜底 -> 稳定观察后再删除 v1 表。
 
 ## 提交与 PR 建议
+
 - 提交信息简短、祈使/现在时，聚焦单一改动。
 - PR 说明建议包含：改动范围、复现/验证步骤、必要截图、环境变量变更。
 
 ## 新增内容源贡献（必读）
+
 - 以 iTunes 接入（`verify/pr-6-merge`）为样本，新增内容源时统一遵循 `docs/content-source-contribution.md`。
 - 涉及新增/切换内容源的 PR，说明中至少要覆盖：kind 与 source 路由关系、搜索实现、分享存储兼容、前端外链与归因、测试结果。
+

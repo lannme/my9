@@ -8,7 +8,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: ["/", "/game", "/anime", "/tv", "/movie", "/manga", "/lightnovel", "/work"],
-        disallow: ["/api/", "/trends", "/*/s/*"],
+        disallow: ["/api/", "/trends", "/*/s/*", "/ops-x7k9m2-panel"],
       },
     ],
     host: getSiteHost(siteUrl),
