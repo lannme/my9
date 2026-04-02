@@ -3,7 +3,7 @@
 import { spawn } from "node:child_process";
 
 const DEFAULT_SITE_URLS = {
-  production: "https://my9boardgame.lannme00.workers.dev",
+  production: "https://boardgame9.top",
   test: "https://my9boardgame.lannme00.workers.dev",
 };
 const SHELL_SITE_URL = process.env.SITE_URL;
