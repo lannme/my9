@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { DEFAULT_SUBJECT_KIND, SubjectKind, parseSubjectKind } from "@/lib/subject-kind";
 import { normalizeSearchQuery } from "@/lib/search/query";
 import { buildBggSearchResponse, searchBggBoardgames, type BggSearchResult } from "@/lib/bgg/search";
+import { searchLocalBoardgames, upsertBggBoardgameFromSearch } from "@/lib/bgg/local-search";
+import type { ShareSubject } from "@/lib/share/types";
 
 const SEARCH_CDN_TTL_SECONDS = 900;
 const SEARCH_STALE_TTL_SECONDS = 86400;
@@ -10,6 +12,9 @@ const SEARCH_MEMORY_CACHE_MAX = 256;
 const SEARCH_RATE_LIMIT_WINDOW_MS = 10 * 1000;
 const SEARCH_RATE_LIMIT_MAX_REQUESTS = 8;
 const SEARCH_RATE_LIMIT_STORE_MAX = 20000;
+const LOCAL_SEARCH_SUFFICIENT_COUNT = 5;
+const BGG_CIRCUIT_BREAKER_THRESHOLD = 3;
+const BGG_CIRCUIT_BREAKER_COOLDOWN_MS = 60 * 1000;
 
 const SEARCH_CACHE_CONTROL_VALUE = `public, max-age=0, s-maxage=${SEARCH_CDN_TTL_SECONDS}, stale-while-revalidate=${SEARCH_STALE_TTL_SECONDS}`;
 const NO_STORE_HEADERS = {
@@ -21,6 +26,8 @@ type SearchMemoryStore = {
   inflight: Map<string, Promise<BggSearchResult>>;
   rateLimit: Map<string, { windowStart: number; count: number }>;
   rateLimitBlockedCount: number;
+  bggErrorCount: number;
+  bggCircuitOpenUntil: number;
 };
 
 function getSearchMemoryStore(): SearchMemoryStore {
@@ -34,10 +41,44 @@ function getSearchMemoryStore(): SearchMemoryStore {
       inflight: new Map(),
       rateLimit: new Map(),
       rateLimitBlockedCount: 0,
+      bggErrorCount: 0,
+      bggCircuitOpenUntil: 0,
     };
   }
 
-  return g.__MY9_BGG_SEARCH_MEMORY__;
+  const store = g.__MY9_BGG_SEARCH_MEMORY__;
+  if (typeof store.bggErrorCount !== "number") store.bggErrorCount = 0;
+  if (typeof store.bggCircuitOpenUntil !== "number") store.bggCircuitOpenUntil = 0;
+
+  return store;
+}
+
+function isBggCircuitOpen(): boolean {
+  const store = getSearchMemoryStore();
+  if (store.bggCircuitOpenUntil <= 0) return false;
+  if (Date.now() >= store.bggCircuitOpenUntil) {
+    store.bggCircuitOpenUntil = 0;
+    store.bggErrorCount = 0;
+    return false;
+  }
+  return true;
+}
+
+function recordBggSuccess(): void {
+  const store = getSearchMemoryStore();
+  store.bggErrorCount = 0;
+  store.bggCircuitOpenUntil = 0;
+}
+
+function recordBggFailure(): void {
+  const store = getSearchMemoryStore();
+  store.bggErrorCount += 1;
+  if (store.bggErrorCount >= BGG_CIRCUIT_BREAKER_THRESHOLD) {
+    store.bggCircuitOpenUntil = Date.now() + BGG_CIRCUIT_BREAKER_COOLDOWN_MS;
+    console.warn(
+      `[bgg-circuit-breaker] opened: ${store.bggErrorCount} consecutive errors, cooling down ${BGG_CIRCUIT_BREAKER_COOLDOWN_MS}ms`,
+    );
+  }
 }
 
 function trimSearchMemoryCache(cache: Map<string, { expiresAt: number; result: BggSearchResult }>) {
@@ -144,6 +185,32 @@ function createSearchCacheHeaders() {
   };
 }
 
+function mergeLocalAndBggResults(
+  localItems: ShareSubject[],
+  bggItems: ShareSubject[],
+): ShareSubject[] {
+  const seen = new Set<string>();
+  const merged: ShareSubject[] = [];
+
+  for (const item of bggItems) {
+    const key = String(item.id);
+    if (!seen.has(key)) {
+      seen.add(key);
+      merged.push(item);
+    }
+  }
+
+  for (const item of localItems) {
+    const key = String(item.id);
+    if (!seen.has(key)) {
+      seen.add(key);
+      merged.push(item);
+    }
+  }
+
+  return merged.slice(0, 20);
+}
+
 async function getCachedSearchResult(query: string, kind: SubjectKind): Promise<BggSearchResult> {
   const memory = getSearchMemoryStore();
   const key = toSearchCacheKey(kind, query);
@@ -156,7 +223,7 @@ async function getCachedSearchResult(query: string, kind: SubjectKind): Promise<
   const pending = memory.inflight.get(key);
   if (pending) return pending;
 
-  const requestPromise = searchBggBoardgames({ query });
+  const requestPromise = executeSearch(query);
   memory.inflight.set(key, requestPromise);
 
   try {
@@ -172,6 +239,98 @@ async function getCachedSearchResult(query: string, kind: SubjectKind): Promise<
       memory.inflight.delete(key);
     }
   }
+}
+
+async function executeSearch(query: string): Promise<BggSearchResult> {
+  let localItems: ShareSubject[] = [];
+  let localOk = false;
+
+  try {
+    const localResult = await searchLocalBoardgames(query);
+    localItems = localResult.items;
+    localOk = true;
+
+    if (localItems.length >= LOCAL_SEARCH_SUFFICIENT_COUNT) {
+      console.log(
+        JSON.stringify({
+          event: "bgg_search",
+          query,
+          source: "local",
+          resultCount: localItems.length,
+        }),
+      );
+      return { items: localItems, thingMap: new Map() };
+    }
+  } catch {
+    localOk = false;
+  }
+
+  if (isBggCircuitOpen()) {
+    if (localOk && localItems.length > 0) {
+      console.log(
+        JSON.stringify({
+          event: "bgg_search",
+          query,
+          source: "local",
+          resultCount: localItems.length,
+          circuitOpen: true,
+        }),
+      );
+      return { items: localItems, thingMap: new Map() };
+    }
+  }
+
+  let bggResult: BggSearchResult | null = null;
+  try {
+    bggResult = await searchBggBoardgames({ query });
+    recordBggSuccess();
+  } catch (error) {
+    recordBggFailure();
+
+    if (localOk && localItems.length > 0) {
+      console.log(
+        JSON.stringify({
+          event: "bgg_search",
+          query,
+          source: "local",
+          resultCount: localItems.length,
+          bgFallback: true,
+        }),
+      );
+      return { items: localItems, thingMap: new Map() };
+    }
+
+    throw error;
+  }
+
+  if (bggResult.items.length > 0) {
+    upsertBggBoardgameFromSearch(bggResult.items, bggResult.thingMap).catch(() => {});
+  }
+
+  if (localOk && localItems.length > 0 && bggResult.items.length > 0) {
+    const merged = mergeLocalAndBggResults(localItems, bggResult.items);
+    console.log(
+      JSON.stringify({
+        event: "bgg_search",
+        query,
+        source: "mixed",
+        resultCount: merged.length,
+        localCount: localItems.length,
+        bggCount: bggResult.items.length,
+      }),
+    );
+    return { items: merged, thingMap: bggResult.thingMap };
+  }
+
+  console.log(
+    JSON.stringify({
+      event: "bgg_search",
+      query,
+      source: "api",
+      resultCount: bggResult.items.length,
+    }),
+  );
+  return bggResult;
 }
 
 export async function handleBggSearchRequest(request: Request) {

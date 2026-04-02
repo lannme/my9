@@ -133,11 +133,34 @@ export async function searchBggBoardgames(params: {
   if (allIds.length === 0) return { items: [], thingMap: new Map() };
 
   const thingMap = new Map<string, BggThingItem>();
+  const batches: string[][] = [];
   for (let i = 0; i < allIds.length; i += BGG_THING_BATCH_SIZE) {
-    const batchIds = allIds.slice(i, i + BGG_THING_BATCH_SIZE).join(",");
-    const thingResult = await fetchThingItems({ id: batchIds, type: "boardgame", stats: 1 });
-    for (const item of bggToArray(thingResult.items?.item)) {
-      if (item.id) thingMap.set(String(item.id), item);
+    batches.push(allIds.slice(i, i + BGG_THING_BATCH_SIZE));
+  }
+
+  const concurrency = 2;
+  for (let i = 0; i < batches.length; i += concurrency) {
+    const chunk = batches.slice(i, i + concurrency);
+    const results = await Promise.allSettled(
+      chunk.map(async (batch) => {
+        const batchIds = batch.join(",");
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            return await fetchThingItems({ id: batchIds, type: "boardgame", stats: 1 });
+          } catch {
+            if (attempt === 1) throw new Error(`BGG thing batch failed after retry: ${batchIds}`);
+            await new Promise((r) => setTimeout(r, 800));
+          }
+        }
+        return undefined;
+      }),
+    );
+    for (const result of results) {
+      if (result.status === "fulfilled" && result.value) {
+        for (const item of bggToArray(result.value.items?.item)) {
+          if (item.id) thingMap.set(String(item.id), item);
+        }
+      }
     }
   }
 

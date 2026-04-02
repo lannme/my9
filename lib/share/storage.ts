@@ -38,6 +38,7 @@ const TREND_COUNT_DAY_TABLE = "my9_trend_subject_kind_day_v3";
 const TREND_COUNT_HOUR_TABLE = "my9_trend_subject_kind_hour_v3";
 const TRENDS_CACHE_TABLE = "my9_trends_cache_v1";
 const SHARE_VIEW_DAILY_TABLE = "my9_share_view_daily_v1";
+const BGG_BOARDGAME_TABLE = "my9_bgg_boardgame_v1";
 const TRENDS_CACHE_VERSION = "v9";
 const TRENDS_SAMPLE_CACHE_VERSION = "v5";
 const SAMPLE_SUMMARY_CACHE_VIEW = "sample";
@@ -454,6 +455,60 @@ async function ensureSchema(): Promise<boolean> {
       await sql`
         CREATE INDEX IF NOT EXISTS ${sql.unsafe(SHARE_VIEW_DAILY_KIND_DAY_COUNT_IDX)}
         ON ${sql.unsafe(SHARE_VIEW_DAILY_TABLE)} (kind, day_key, view_count DESC, share_id)
+      `;
+
+      await sql`CREATE EXTENSION IF NOT EXISTS pg_trgm`;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS ${sql.unsafe(BGG_BOARDGAME_TABLE)} (
+          bgg_id          TEXT PRIMARY KEY,
+          name            TEXT NOT NULL,
+          localized_name  TEXT,
+          year_published  INT,
+          bgg_rank        INT,
+          bayes_average   REAL NOT NULL DEFAULT 0,
+          average         REAL NOT NULL DEFAULT 0,
+          users_rated     INT NOT NULL DEFAULT 0,
+          is_expansion    BOOLEAN DEFAULT FALSE,
+          abstracts_rank      INT,
+          cgs_rank            INT,
+          childrensgames_rank INT,
+          familygames_rank    INT,
+          partygames_rank     INT,
+          strategygames_rank  INT,
+          thematic_rank       INT,
+          wargames_rank       INT,
+          cover           TEXT,
+          thumbnail       TEXT,
+          genres          JSONB,
+          description     TEXT,
+          name_search     TEXT GENERATED ALWAYS AS (lower(name)) STORED,
+          csv_imported_at BIGINT,
+          api_enriched_at BIGINT,
+          updated_at      BIGINT NOT NULL
+        )
+      `;
+      await sql`
+        CREATE INDEX IF NOT EXISTS bgg_boardgame_name_trgm_idx
+        ON ${sql.unsafe(BGG_BOARDGAME_TABLE)} USING gin (name gin_trgm_ops)
+      `;
+      await sql`
+        CREATE INDEX IF NOT EXISTS bgg_boardgame_locname_trgm_idx
+        ON ${sql.unsafe(BGG_BOARDGAME_TABLE)} USING gin (localized_name gin_trgm_ops)
+        WHERE localized_name IS NOT NULL
+      `;
+      await sql`
+        CREATE INDEX IF NOT EXISTS bgg_boardgame_rank_idx
+        ON ${sql.unsafe(BGG_BOARDGAME_TABLE)} (bgg_rank ASC NULLS LAST)
+      `;
+      await sql`
+        CREATE INDEX IF NOT EXISTS bgg_boardgame_bayes_idx
+        ON ${sql.unsafe(BGG_BOARDGAME_TABLE)} (bayes_average DESC)
+      `;
+      await sql`
+        CREATE INDEX IF NOT EXISTS bgg_boardgame_base_rank_idx
+        ON ${sql.unsafe(BGG_BOARDGAME_TABLE)} (bgg_rank ASC NULLS LAST)
+        WHERE is_expansion = FALSE
       `;
     })();
   }
@@ -2300,3 +2355,6 @@ export async function archiveHotSharesToColdStorage(params?: {
     cleanedTrendRows: cleanedDayRows.length + cleanedHourRows.length,
   };
 }
+
+export { BGG_BOARDGAME_TABLE };
+export { getSqlClient as _getSqlClient, ensureSchema as _ensureSchema };
