@@ -71,6 +71,10 @@ export default function OpsPanel() {
   const [enrichLimit, setEnrichLimit] = useState("200");
   const [enrichForce, setEnrichForce] = useState(false);
 
+  const [debugBggId, setDebugBggId] = useState("");
+  const [debugResult, setDebugResult] = useState<string | null>(null);
+  const [debugLoading, setDebugLoading] = useState(false);
+
   const addLog = useCallback(
     (level: LogEntry["level"], message: string) => {
       const entry: LogEntry = {
@@ -243,6 +247,34 @@ export default function OpsPanel() {
       setRunning(null);
     }
   }, [running, cleanFields, addLog, authHeaders, fetchStats]);
+
+  const runDebugThing = useCallback(async () => {
+    const id = debugBggId.trim();
+    if (!id) return;
+    setDebugLoading(true);
+    setDebugResult(null);
+    addLog("info", `正在查询 BGG /thing 接口 (id=${id})...`);
+    try {
+      const res = await fetch(`${API_BASE}/debug-thing?id=${id}`, {
+        headers: authHeaders(),
+      });
+      const data = await res.json();
+      const formatted = JSON.stringify(data, null, 2);
+      setDebugResult(formatted);
+      if (data.ok) {
+        const items = data.raw || [];
+        for (const item of items) {
+          addLog("success", `id=${item.id} | image=${item.image || "(空)"} | thumbnail=${item.thumbnail || "(空)"}`);
+        }
+      } else {
+        addLog("error", `查询失败: ${data.error}`);
+      }
+    } catch (err) {
+      addLog("error", `查询异常: ${err instanceof Error ? err.message : "unknown"}`);
+    } finally {
+      setDebugLoading(false);
+    }
+  }, [debugBggId, addLog, authHeaders]);
 
   const toggleCleanField = useCallback((key: string) => {
     setCleanFields((prev) => {
@@ -508,6 +540,46 @@ export default function OpsPanel() {
               ④ 上线后搜索请求会自动回写增量数据
             </p>
           </div>
+        </div>
+
+        <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+          <h2 className="text-base font-semibold text-foreground">4. BGG /thing 接口调试</h2>
+          <p className="text-xs text-muted-foreground">
+            输入 BGG ID 查看完整的 /thing API 返回值（含 image、thumbnail、links 等全部字段）
+          </p>
+          <div className="flex gap-2">
+            <Input
+              type="text"
+              placeholder="BGG ID（如 174430）"
+              value={debugBggId}
+              onChange={(e) => setDebugBggId(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") runDebugThing(); }}
+              className="h-8 text-sm flex-1"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={runDebugThing}
+              disabled={debugLoading || !debugBggId.trim()}
+            >
+              {debugLoading ? "查询中..." : "查询"}
+            </Button>
+          </div>
+          {debugResult && (
+            <div className="relative">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute top-1 right-1 text-xs"
+                onClick={() => navigator.clipboard.writeText(debugResult)}
+              >
+                复制
+              </Button>
+              <pre className="max-h-96 overflow-auto rounded-md bg-muted/50 p-3 text-xs font-mono whitespace-pre-wrap break-all">
+                {debugResult}
+              </pre>
+            </div>
+          )}
         </div>
 
         <div className="rounded-lg border border-border bg-card p-4 space-y-2">
