@@ -26,7 +26,7 @@ export async function GET(request: Request) {
       `SELECT
         COUNT(*)::int AS total_count,
         COUNT(*) FILTER (WHERE cover IS NOT NULL)::int AS with_cover,
-        COUNT(*) FILTER (WHERE localized_name IS NOT NULL)::int AS with_localized_name,
+        COUNT(*) FILTER (WHERE localized_names IS NOT NULL)::int AS with_localized_name,
         COUNT(*) FILTER (WHERE api_enriched_at IS NOT NULL)::int AS enriched_count,
         COUNT(*) FILTER (WHERE csv_imported_at IS NOT NULL)::int AS csv_imported_count,
         COUNT(*) FILTER (WHERE is_expansion = TRUE)::int AS expansion_count,

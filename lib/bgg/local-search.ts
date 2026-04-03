@@ -5,7 +5,7 @@ import type { BggThingItem } from "@/lib/bgg/bgg-api";
 type BggBoardgameRow = {
   bgg_id: string;
   name: string;
-  localized_name: string | null;
+  localized_names: unknown;
   year_published: number | null;
   cover: string | null;
   thumbnail: string | null;
@@ -26,7 +26,7 @@ function escapeIlike(input: string): string {
   return input.replace(/%/g, "\\%").replace(/_/g, "\\_");
 }
 
-function parseGenres(raw: unknown): string[] | undefined {
+function parseJsonArray(raw: unknown): string[] | undefined {
   if (!raw) return undefined;
   if (Array.isArray(raw)) {
     const filtered = raw.filter((v): v is string => typeof v === "string" && v.length > 0);
@@ -46,14 +46,23 @@ function parseGenres(raw: unknown): string[] | undefined {
   return undefined;
 }
 
+function pickLocalizedName(row: BggBoardgameRow): string | undefined {
+  const names = parseJsonArray(row.localized_names);
+  if (names && names.length > 0) {
+    const cjk = names.find((n) => CJK_RE.test(n));
+    return cjk || names[0];
+  }
+  return undefined;
+}
+
 function rowToSubject(row: BggBoardgameRow): ShareSubject {
   return {
     id: row.bgg_id,
     name: row.name,
-    localizedName: row.localized_name || undefined,
+    localizedName: pickLocalizedName(row),
     cover: row.cover || row.thumbnail || null,
     releaseYear: row.year_published ?? undefined,
-    genres: parseGenres(row.genres),
+    genres: parseJsonArray(row.genres),
     storeUrls: {
       bgg: `https://boardgamegeek.com/boardgame/${row.bgg_id}`,
     },
@@ -77,9 +86,9 @@ export async function searchLocalBoardgames(query: string): Promise<LocalSearchR
     const escaped = escapeIlike(trimmed);
     rows = (await sql.query(
       `
-      SELECT bgg_id, name, localized_name, year_published, cover, thumbnail, genres, bayes_average, users_rated
+      SELECT bgg_id, name, localized_names, year_published, cover, thumbnail, genres, bayes_average, users_rated
       FROM ${BGG_BOARDGAME_TABLE}
-      WHERE localized_name ILIKE '%' || $1 || '%'
+      WHERE localized_names::text ILIKE '%' || $1 || '%'
         AND is_expansion = FALSE
       ORDER BY bayes_average DESC
       LIMIT 20
@@ -90,7 +99,7 @@ export async function searchLocalBoardgames(query: string): Promise<LocalSearchR
     const lowered = trimmed.toLowerCase();
     rows = (await sql.query(
       `
-      SELECT bgg_id, name, localized_name, year_published, cover, thumbnail, genres, bayes_average, users_rated,
+      SELECT bgg_id, name, localized_names, year_published, cover, thumbnail, genres, bayes_average, users_rated,
              similarity(name, $1) AS sim
       FROM ${BGG_BOARDGAME_TABLE}
       WHERE (name % $1 OR name_search = $2)
@@ -127,7 +136,7 @@ export async function upsertBggBoardgameFromSearch(
   const upsertRows: Array<{
     bgg_id: string;
     name: string;
-    localized_name: string | null;
+    localized_names: string | null;
     year_published: number | null;
     cover: string | null;
     thumbnail: string | null;
@@ -157,7 +166,7 @@ export async function upsertBggBoardgameFromSearch(
     upsertRows.push({
       bgg_id: bggId,
       name: item.name,
-      localized_name: item.localizedName ?? null,
+      localized_names: item.localizedName ? JSON.stringify([item.localizedName]) : null,
       year_published: item.releaseYear ?? null,
       cover,
       thumbnail,
@@ -175,16 +184,16 @@ export async function upsertBggBoardgameFromSearch(
     await sql.query(
       `
       INSERT INTO ${BGG_BOARDGAME_TABLE} (
-        bgg_id, name, localized_name, year_published, cover, thumbnail, genres,
+        bgg_id, name, localized_names, year_published, cover, thumbnail, genres,
         users_rated, bayes_average, updated_at, api_enriched_at
       )
       SELECT
-        r.bgg_id, r.name, r.localized_name, r.year_published, r.cover, r.thumbnail,
+        r.bgg_id, r.name, r.localized_names::jsonb, r.year_published, r.cover, r.thumbnail,
         r.genres::jsonb, r.users_rated, r.bayes_average, $2::bigint, $2::bigint
       FROM jsonb_to_recordset($1::jsonb) AS r(
         bgg_id text,
         name text,
-        localized_name text,
+        localized_names text,
         year_published int,
         cover text,
         thumbnail text,
@@ -196,7 +205,7 @@ export async function upsertBggBoardgameFromSearch(
         name = EXCLUDED.name,
         cover = EXCLUDED.cover,
         thumbnail = EXCLUDED.thumbnail,
-        localized_name = COALESCE(EXCLUDED.localized_name, ${BGG_BOARDGAME_TABLE}.localized_name),
+        localized_names = COALESCE(EXCLUDED.localized_names, ${BGG_BOARDGAME_TABLE}.localized_names),
         genres = EXCLUDED.genres,
         users_rated = EXCLUDED.users_rated,
         bayes_average = EXCLUDED.bayes_average,

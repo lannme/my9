@@ -7,7 +7,7 @@ import { XMLParser } from "fast-xml-parser";
 
 const BGG_TABLE = "my9_bgg_boardgame_v1";
 const BGG_API_BASE = "https://boardgamegeek.com/xmlapi2";
-const CJK_RE = /[\u4e00-\u9fff\u3400-\u4dbf]/;
+const BGG_APP_TOKEN = process.env.BGG_APP_TOKEN ?? "";
 const RATE_LIMIT_DELAY_MS = 1500;
 const RETRY_DELAY_MS = 30_000;
 
@@ -122,9 +122,10 @@ function extractItemData(item) {
 
   const names = toArray(item.name);
   const primaryName = names.find((n) => n.type === "primary")?.value || null;
-  const localizedName = names.find(
-    (n) => n.type === "alternate" && n.value && CJK_RE.test(n.value)
-  )?.value || null;
+  const localizedNames = names
+    .filter((n) => n.type === "alternate" && n.value)
+    .map((n) => n.value)
+    .filter(Boolean);
 
   const rawDescription = typeof item.description === "string" ? item.description : "";
   const description = stripHtml(rawDescription).slice(0, 500) || null;
@@ -148,7 +149,7 @@ function extractItemData(item) {
     cover: image,
     thumbnail,
     primaryName,
-    localizedName,
+    localizedNames: localizedNames.length > 0 ? localizedNames : null,
     description,
     genres: genres.length > 0 ? genres : null,
     bayesAverage,
@@ -160,8 +161,12 @@ function extractItemData(item) {
 
 async function fetchBggThingBatch(ids, retried = false) {
   const url = `${BGG_API_BASE}/thing?id=${ids.join(",")}&type=boardgame&stats=1`;
+  const headers = { Accept: "text/xml" };
+  if (BGG_APP_TOKEN) {
+    headers["Authorization"] = `Bearer ${BGG_APP_TOKEN}`;
+  }
   const response = await fetch(url, {
-    headers: { Accept: "text/xml" },
+    headers,
     signal: AbortSignal.timeout(20_000),
   });
 
@@ -260,7 +265,7 @@ async function main() {
       }
 
       if (dryRun) {
-        console.log(`  [DRY-RUN] Would update ${bggId}: cover=${data.cover ? "yes" : "no"}, localized=${data.localizedName || "none"}, genres=${data.genres ? data.genres.length : 0}`);
+        console.log(`  [DRY-RUN] Would update ${bggId}: cover=${data.cover ? "yes" : "no"}, localized=${data.localizedNames ? data.localizedNames.length + " names" : "none"}, genres=${data.genres ? data.genres.length : 0}`);
         enriched++;
         continue;
       }
@@ -271,7 +276,7 @@ async function main() {
           `UPDATE ${BGG_TABLE} SET
             cover = $1,
             thumbnail = $2,
-            localized_name = COALESCE($3, ${BGG_TABLE}.localized_name),
+            localized_names = COALESCE($3, ${BGG_TABLE}.localized_names),
             genres = $4,
             description = $5,
             bayes_average = $6,
@@ -292,7 +297,7 @@ async function main() {
           [
             data.cover,
             data.thumbnail,
-            data.localizedName,
+            data.localizedNames ? JSON.stringify(data.localizedNames) : null,
             data.genres ? JSON.stringify(data.genres) : null,
             data.description,
             data.bayesAverage,

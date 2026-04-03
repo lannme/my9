@@ -463,7 +463,6 @@ async function ensureSchema(): Promise<boolean> {
         CREATE TABLE IF NOT EXISTS ${sql.unsafe(BGG_BOARDGAME_TABLE)} (
           bgg_id          TEXT PRIMARY KEY,
           name            TEXT NOT NULL,
-          localized_name  TEXT,
           year_published  INT,
           bgg_rank        INT,
           bayes_average   REAL NOT NULL DEFAULT 0,
@@ -488,14 +487,19 @@ async function ensureSchema(): Promise<boolean> {
           updated_at      BIGINT NOT NULL
         )
       `;
+
+      await sql`ALTER TABLE ${sql.unsafe(BGG_BOARDGAME_TABLE)} ADD COLUMN IF NOT EXISTS localized_names JSONB`;
+      await sql`ALTER TABLE ${sql.unsafe(BGG_BOARDGAME_TABLE)} ADD COLUMN IF NOT EXISTS mechanics JSONB`;
+      await sql`ALTER TABLE ${sql.unsafe(BGG_BOARDGAME_TABLE)} ADD COLUMN IF NOT EXISTS families JSONB`;
+      await sql`ALTER TABLE ${sql.unsafe(BGG_BOARDGAME_TABLE)} ADD COLUMN IF NOT EXISTS designers JSONB`;
+      await sql`ALTER TABLE ${sql.unsafe(BGG_BOARDGAME_TABLE)} ADD COLUMN IF NOT EXISTS artists JSONB`;
+      await sql`ALTER TABLE ${sql.unsafe(BGG_BOARDGAME_TABLE)} ADD COLUMN IF NOT EXISTS publishers JSONB`;
+      await sql`ALTER TABLE ${sql.unsafe(BGG_BOARDGAME_TABLE)} ADD COLUMN IF NOT EXISTS num_comments INT`;
+      await sql`ALTER TABLE ${sql.unsafe(BGG_BOARDGAME_TABLE)} DROP COLUMN IF EXISTS localized_name`;
+      await sql`DROP INDEX IF EXISTS bgg_boardgame_locname_trgm_idx`;
       await sql`
         CREATE INDEX IF NOT EXISTS bgg_boardgame_name_trgm_idx
         ON ${sql.unsafe(BGG_BOARDGAME_TABLE)} USING gin (name gin_trgm_ops)
-      `;
-      await sql`
-        CREATE INDEX IF NOT EXISTS bgg_boardgame_locname_trgm_idx
-        ON ${sql.unsafe(BGG_BOARDGAME_TABLE)} USING gin (localized_name gin_trgm_ops)
-        WHERE localized_name IS NOT NULL
       `;
       await sql`
         CREATE INDEX IF NOT EXISTS bgg_boardgame_rank_idx

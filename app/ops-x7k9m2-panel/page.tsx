@@ -31,6 +31,21 @@ type LogEntry = {
   message: string;
 };
 
+const CLEAN_FIELD_OPTIONS = [
+  { key: "localized_names", label: "翻译名列表 (localized_names)" },
+  { key: "cover", label: "封面图" },
+  { key: "thumbnail", label: "缩略图" },
+  { key: "genres", label: "游戏分类" },
+  { key: "mechanics", label: "游戏机制" },
+  { key: "families", label: "游戏系列" },
+  { key: "designers", label: "设计师" },
+  { key: "artists", label: "美术师" },
+  { key: "publishers", label: "出版商" },
+  { key: "description", label: "游戏描述" },
+  { key: "num_comments", label: "评论数" },
+  { key: "api_enriched_at", label: "补充标记 (重跑补充)" },
+] as const;
+
 function formatTime(): string {
   return new Date().toLocaleTimeString("zh-CN", { hour12: false });
 }
@@ -48,6 +63,13 @@ export default function OpsPanel() {
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const logIdRef = useRef(0);
+
+  const [cleanFields, setCleanFields] = useState<Set<string>>(new Set());
+
+  const [enrichRankFrom, setEnrichRankFrom] = useState("1");
+  const [enrichRankTo, setEnrichRankTo] = useState("");
+  const [enrichLimit, setEnrichLimit] = useState("200");
+  const [enrichForce, setEnrichForce] = useState(false);
 
   const addLog = useCallback(
     (level: LogEntry["level"], message: string) => {
@@ -146,20 +168,38 @@ export default function OpsPanel() {
   const runEnrich = useCallback(async () => {
     if (running) return;
     setRunning("enrich");
-    addLog("info", "开始执行 BGG 详情补充（limit=200, batchSize=20）...");
+    const rankFromNum = Math.max(1, Number(enrichRankFrom) || 1);
+    const rankToNum = Number(enrichRankTo) || 0;
+    const limitNum = Math.max(1, Number(enrichLimit) || 200);
+    const effectiveForce = enrichForce || rankToNum > 0;
+    const rangeDesc = rankToNum > 0 ? `rank ${rankFromNum}~${rankToNum}` : `rank ${rankFromNum}+`;
+    addLog("info", `开始 BGG 详情补充（${rangeDesc}, limit=${limitNum}${effectiveForce ? ", 强制模式" : ""}）...`);
     try {
+      const body: Record<string, unknown> = {
+        batchSize: 20,
+        limit: limitNum,
+        rankFrom: rankFromNum,
+      };
+      if (rankToNum > 0) body.rankTo = rankToNum;
+      if (effectiveForce) body.force = true;
       const res = await fetch(`${API_BASE}/enrich`, {
         method: "POST",
         headers: { ...authHeaders(), "Content-Type": "application/json" },
-        body: JSON.stringify({ batchSize: 20, limit: 200 }),
+        body: JSON.stringify(body),
       });
       const data: TaskResult = await res.json();
       if (data.ok && data.result) {
         const r = data.result;
+        const level = r.failed > 0 ? "warn" : "success";
         addLog(
-          "success",
+          level,
           `详情补充完成：找到 ${r.totalFound}，获取 ${r.totalFetched}，更新 ${r.enriched}，失败 ${r.failed}，跳过 ${r.skipped}，耗时 ${r.elapsedMs}ms`,
         );
+        if (r.errors && Array.isArray(r.errors)) {
+          for (const errMsg of r.errors) {
+            addLog("error", errMsg);
+          }
+        }
         fetchStats();
       } else {
         addLog("error", `详情补充失败: ${data.error || "unknown"}`);
@@ -169,7 +209,52 @@ export default function OpsPanel() {
     } finally {
       setRunning(null);
     }
-  }, [running, addLog, authHeaders, fetchStats]);
+  }, [running, enrichRankFrom, enrichRankTo, enrichLimit, enrichForce, addLog, authHeaders, fetchStats]);
+
+  const runClean = useCallback(async () => {
+    if (running) return;
+    if (cleanFields.size === 0) {
+      addLog("warn", "请至少选择一个要清洗的字段");
+      return;
+    }
+    const fieldList = Array.from(cleanFields);
+    setRunning("clean");
+    addLog("info", `开始清洗字段：${fieldList.join(", ")}...`);
+    try {
+      const res = await fetch(`${API_BASE}/clean`, {
+        method: "POST",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ fields: fieldList }),
+      });
+      const data: TaskResult = await res.json();
+      if (data.ok && data.result) {
+        const r = data.result;
+        addLog(
+          "success",
+          `清洗完成：字段 [${(r.fields as string[]).join(", ")}]，影响 ${r.affectedRows} 行${r.resetEnrich ? "（api_enriched_at 已重置，可重新执行补充）" : ""}`,
+        );
+        fetchStats();
+      } else {
+        addLog("error", `清洗失败: ${data.error || "unknown"}`);
+      }
+    } catch (err) {
+      addLog("error", `清洗异常: ${err instanceof Error ? err.message : "unknown"}`);
+    } finally {
+      setRunning(null);
+    }
+  }, [running, cleanFields, addLog, authHeaders, fetchStats]);
+
+  const toggleCleanField = useCallback((key: string) => {
+    setCleanFields((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }, []);
 
   const handleLogout = useCallback(() => {
     tokenRef.current = "";
@@ -302,22 +387,125 @@ export default function OpsPanel() {
                 </Button>
               </div>
             </div>
-            <ActionCard
-              title="2. BGG 详情补充"
-              description="为缺少封面的高分桌游从 BGG API 拉取详情（封面、中文名、类型）"
-              buttonText={running === "enrich" ? "补充中..." : "执行补充"}
-              onClick={runEnrich}
-              disabled={!!running}
-              variant="secondary"
-            />
+            <div className="rounded-md border border-border bg-background p-4 space-y-3">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">2. BGG 详情补充</h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  按 rank 范围从 BGG API 拉取详情（封面、翻译名、分类、机制、设计师等）
+                </p>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-xs text-muted-foreground">Rank 起始</label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={enrichRankFrom}
+                    onChange={(e) => setEnrichRankFrom(e.target.value)}
+                    disabled={!!running}
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Rank 结束</label>
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="不限"
+                    value={enrichRankTo}
+                    onChange={(e) => setEnrichRankTo(e.target.value)}
+                    disabled={!!running}
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">每次条数</label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={enrichLimit}
+                    onChange={(e) => setEnrichLimit(e.target.value)}
+                    disabled={!!running}
+                    className="h-8 text-sm"
+                  />
+                </div>
+              </div>
+              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={enrichForce}
+                  onChange={(e) => setEnrichForce(e.target.checked)}
+                  disabled={!!running}
+                  className="rounded"
+                />
+                强制模式（重新补充已标记的条目）
+              </label>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={runEnrich}
+                disabled={!!running}
+                className="w-full"
+              >
+                {running === "enrich" ? "补充中..." : "执行补充"}
+              </Button>
+            </div>
           </div>
+
+          <div className="rounded-md border border-border bg-background p-4 space-y-3">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">3. 数据清洗</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                选择要清空的字段，一键将其置为 NULL。清洗 API 补充字段时会同时重置 api_enriched_at，方便重新执行补充。
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {CLEAN_FIELD_OPTIONS.map((opt) => (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => toggleCleanField(opt.key)}
+                  disabled={!!running}
+                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                    cleanFields.has(opt.key)
+                      ? "bg-destructive/10 border-destructive text-destructive"
+                      : "bg-muted/50 border-border text-muted-foreground hover:border-foreground/30"
+                  } disabled:opacity-50`}
+                >
+                  {cleanFields.has(opt.key) ? "✕ " : ""}{opt.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={runClean}
+                disabled={!!running || cleanFields.size === 0}
+                className="flex-1"
+              >
+                {running === "clean" ? "清洗中..." : `清洗选中字段（${cleanFields.size}）`}
+              </Button>
+              {cleanFields.size > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setCleanFields(new Set())}
+                  disabled={!!running}
+                >
+                  取消全选
+                </Button>
+              )}
+            </div>
+          </div>
+
           <div className="rounded bg-muted/50 p-3">
             <p className="text-xs text-muted-foreground leading-relaxed">
               <strong>操作顺序：</strong>
               ① 首次部署先执行「CSV 冷启动导入」灌入基础数据 →
-              ② 再执行「BGG 详情补充」为高分条目补充封面和中文名 →
-              ③ 上线后搜索请求会自动回写增量数据 →
-              ④ 定期执行「BGG 详情补充」维护新增条目
+              ② 再执行「BGG 详情补充」为条目补充封面、翻译名、分类、机制等 →
+              ③ 如需重跑补充，先用「数据清洗」清除相关字段 →
+              ④ 上线后搜索请求会自动回写增量数据
             </p>
           </div>
         </div>
@@ -325,15 +513,35 @@ export default function OpsPanel() {
         <div className="rounded-lg border border-border bg-card p-4 space-y-2">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold text-foreground">操作日志</h2>
-            {logs.length > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setLogs([])}
-              >
-                清空
-              </Button>
-            )}
+            <div className="flex gap-2">
+              {logs.length > 0 && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const text = logs
+                        .slice()
+                        .reverse()
+                        .map((e) => `[${e.time}] ${e.message}`)
+                        .join("\n");
+                      navigator.clipboard.writeText(text).then(() => {
+                        addLog("info", "日志已复制到剪贴板");
+                      });
+                    }}
+                  >
+                    复制日志
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setLogs([])}
+                  >
+                    清空
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
           <div className="max-h-64 overflow-y-auto space-y-1">
             {logs.length === 0 ? (
@@ -383,40 +591,6 @@ function StatCard({
       >
         {typeof value === "number" ? value.toLocaleString() : value}
       </p>
-    </div>
-  );
-}
-
-function ActionCard({
-  title,
-  description,
-  buttonText,
-  onClick,
-  disabled,
-  variant,
-}: {
-  title: string;
-  description: string;
-  buttonText: string;
-  onClick: () => void;
-  disabled: boolean;
-  variant: "default" | "secondary";
-}) {
-  return (
-    <div className="rounded-md border border-border bg-background p-4 space-y-3">
-      <div>
-        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-        <p className="text-xs text-muted-foreground mt-1">{description}</p>
-      </div>
-      <Button
-        variant={variant}
-        size="sm"
-        onClick={onClick}
-        disabled={disabled}
-        className="w-full"
-      >
-        {buttonText}
-      </Button>
     </div>
   );
 }
