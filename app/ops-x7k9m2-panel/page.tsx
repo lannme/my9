@@ -20,7 +20,8 @@ type BggStats = {
 type TaskResult = {
   ok: boolean;
   error?: string;
-  result?: Record<string, unknown>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  result?: Record<string, any>;
   stats?: BggStats;
 };
 

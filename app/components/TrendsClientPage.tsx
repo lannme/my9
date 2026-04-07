@@ -236,27 +236,27 @@ function TrendGameMiniCard({ kind, rank, game, count, tagLabel, showReleaseYear 
   const title = game ? game.localizedName || game.name : "暂无条目";
   const subjectResolution = game
     ? resolveSubjectLink({
-        kind,
-        subject: {
-          id: game.id,
-          name: game.name,
-          localizedName: game.localizedName,
-        },
-      })
+      kind,
+      subject: {
+        id: game.id,
+        name: game.name,
+        localizedName: game.localizedName,
+      },
+    })
     : null;
   const subjectUrl = subjectResolution?.url ?? null;
   const sourceLabel = subjectResolution?.sourceLabel ?? "Bangumi";
   const subtitle = game && game.localizedName && game.localizedName !== game.name ? game.name : null;
 
   return (
-    <article className="rounded-xl border border-border bg-card p-3 transition-colors hover:bg-accent/40">
+    <article className="p-3 rounded-xl border transition-colors border-border bg-card hover:bg-accent/40">
       <div className="flex items-start gap-2.5">
         <span className="w-8 flex-shrink-0 pt-0.5 text-xs font-bold text-sky-500">#{rank}</span>
 
         {game ? (
           <>
             <div className="flex min-w-0 flex-1 items-start gap-2.5">
-              <div className="h-16 w-12 flex-shrink-0 overflow-hidden rounded border border-border bg-muted">
+              <div className="overflow-hidden flex-shrink-0 w-12 h-16 rounded border border-border bg-muted">
                 {coverUrl ? (
                   <Image
                     src={coverUrl}
@@ -264,18 +264,18 @@ function TrendGameMiniCard({ kind, rank, game, count, tagLabel, showReleaseYear 
                     width={48}
                     height={64}
                     unoptimized
-                    className="h-full w-full object-cover"
+                    className="object-cover w-full h-full"
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-[10px] text-muted-foreground">无图</div>
                 )}
               </div>
-              <div className="min-w-0 space-y-1">
-                <p className="truncate text-sm font-semibold text-card-foreground">
+              <div className="space-y-1 min-w-0">
+                <p className="text-sm font-semibold truncate text-card-foreground">
                   {title}
                   {showReleaseYear && game.releaseYear ? ` (${game.releaseYear})` : ""}
                 </p>
-                {subtitle ? <p className="truncate text-xs text-muted-foreground">{subtitle}</p> : null}
+                {subtitle ? <p className="text-xs truncate text-muted-foreground">{subtitle}</p> : null}
                 <span className="inline-flex items-center rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
                   选定 {count.toLocaleString("zh-CN")}
                 </span>
@@ -297,19 +297,19 @@ function TrendGameMiniCard({ kind, rank, game, count, tagLabel, showReleaseYear 
                 title={`在 ${sourceLabel} 查看`}
                 className="rounded-md border border-border bg-muted p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
               >
-                <Globe className="h-4 w-4" />
+                <Globe className="w-4 h-4" />
               </a>
             ) : (
               <span className="rounded-md border border-border bg-muted p-1.5 text-muted-foreground/50">
-                <Globe className="h-4 w-4" />
+                <Globe className="w-4 h-4" />
               </span>
             )}
           </>
         ) : (
-          <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
+          <div className="flex flex-1 gap-2 justify-between items-center min-w-0">
             <p className="text-xs text-muted-foreground">{title}</p>
             <span className="rounded-md border border-border bg-muted p-1.5 text-muted-foreground/50">
-              <Globe className="h-4 w-4" />
+              <Globe className="w-4 h-4" />
             </span>
           </div>
         )}
@@ -358,8 +358,8 @@ export default function TrendsClientPage({
   const nowMs = Date.now();
   const shouldRefetchOnMount = Boolean(
     !initialData ||
-      initialError ||
-      (initialData && initialData.sampleCount >= 30 && Array.isArray(initialData.items) && initialData.items.length === 0)
+    initialError ||
+    (initialData && initialData.sampleCount >= 30 && Array.isArray(initialData.items) && initialData.items.length === 0)
   );
   const [kind, setKind] = useState<SubjectKind>(initialKind ?? urlState.kind);
   const [period, setPeriod] = useState<TrendPeriod>(initialPeriod ?? urlState.period);
@@ -569,23 +569,23 @@ export default function TrendsClientPage({
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <section className="w-full border-b border-border bg-card shadow-sm">
-        <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6">
+      <section className="w-full border-b shadow-sm border-border bg-card">
+        <div className="px-4 py-5 mx-auto w-full max-w-6xl sm:px-6">
           <Link
             href={`/${kind}`}
-            className="inline-flex items-center rounded-full border border-border bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full border transition-colors border-border bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground"
           >
             返回主页面
           </Link>
 
-          <div className="mt-4 flex flex-wrap flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="space-y-1 flex-shrink-0">
+          <div className="flex flex-col flex-wrap gap-4 mt-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex-shrink-0 space-y-1">
               <h1 className="text-3xl font-bold tracking-tight text-foreground">大家的构成</h1>
               <p className="text-sm text-muted-foreground">{topCardSummary}</p>
               <p className="text-xs text-amber-600 dark:text-amber-400">
                 每小时30分更新。
               </p>
-              <SupportButton/>
+              <SupportButton />
               <p className="text-xs text-muted-foreground">
                 当前类别样本数：{data?.sampleCount ?? "-"}
                 {/* 集计区间：{formatDateTime(data?.range.from ?? null)} ～ {formatDateTime(data?.range.to ?? null)} */}
@@ -593,8 +593,8 @@ export default function TrendsClientPage({
               <p className="text-xs text-muted-foreground">最后更新：{formatDateTime(data?.lastUpdatedAt ?? null)}</p>
             </div>
 
-            <div className="mt-auto flex flex-col items-end space-y-2 ml-auto">
-              <div className="self-end overflow-x-auto md:overflow-visible">
+            <div className="flex flex-col items-end mt-auto ml-auto space-y-2">
+              <div className="overflow-x-auto self-end md:overflow-visible">
                 <div className="inline-flex overflow-hidden rounded-full border border-border bg-card">
                   {PERIOD_OPTIONS.map((option) => {
                     const disabled = isPeriodDisabled(option, nowMs);
@@ -623,11 +623,11 @@ export default function TrendsClientPage({
         </div>
       </section>
 
-      <div className="mx-auto w-full max-w-6xl px-4 pb-12 pt-6 sm:px-6">
-        <section className="mb-5 rounded-2xl border border-border bg-card p-5 shadow-sm">
+      <div className="px-4 pt-6 pb-12 mx-auto w-full max-w-6xl sm:px-6">
+        <section className="p-5 mb-5 rounded-2xl border shadow-sm border-border bg-card">
           <div className="mb-4">
             <h2 className="text-lg font-bold text-foreground">排行榜</h2>
-            <div className="mt-2 flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 mt-2">
               {VIEW_OPTIONS.map((option) => (
                 <Button
                   key={option.value}
@@ -646,7 +646,7 @@ export default function TrendsClientPage({
             </div>
 
             {showOverallPagination ? (
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 mt-3">
                 {OVERALL_PAGE_GROUPS.map((group) => {
                   const active = group.page === overallPage;
                   return (
@@ -670,7 +670,7 @@ export default function TrendsClientPage({
             ) : null}
 
             {showYearPagination ? (
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 mt-3">
                 {YEAR_PAGE_OPTIONS.map((option) => {
                   const active = option.value === yearPage;
                   return (
@@ -698,7 +698,7 @@ export default function TrendsClientPage({
           {!loading && error ? <p className="text-sm text-rose-600">{error}</p> : null}
 
           {!loading && !error && data && hasInsufficientSamples ? (
-            <div className="rounded-2xl border border-dashed border-border bg-muted p-10 text-center text-sm text-muted-foreground">
+            <div className="p-10 text-sm text-center rounded-2xl border border-dashed border-border bg-muted text-muted-foreground">
               数据暂缺，请稍后再试
             </div>
           ) : null}
@@ -714,16 +714,16 @@ export default function TrendsClientPage({
                     return (
                       <article
                         key={bucket.key}
-                        className="rounded-2xl border border-border bg-muted/40 p-4 shadow-sm"
+                        className="p-4 rounded-2xl border shadow-sm border-border bg-muted/40"
                       >
-                        <div className="mb-3 flex items-start justify-between gap-3">
+                        <div className="flex gap-3 justify-between items-start mb-3">
                           <div className="min-w-0">
-                            <p className="truncate text-xl font-bold text-foreground">
+                            <p className="text-xl font-bold truncate text-foreground">
                               {view === "genre" ? `#${bucketIndex + 1} ${bucket.label}` : bucket.label}
                             </p>
                             <p className="mt-1 text-xs text-muted-foreground">{groupedBucketHint(view)}</p>
                           </div>
-                          <div className="shrink-0 rounded-xl border border-border bg-card px-3 py-2 text-base font-bold text-card-foreground">
+                          <div className="px-3 py-2 text-base font-bold rounded-xl border shrink-0 border-border bg-card text-card-foreground">
                             选定数：{bucket.count.toLocaleString("zh-CN")}
                           </div>
                         </div>
@@ -790,7 +790,7 @@ export default function TrendsClientPage({
         )}
       >
         <div className="flex flex-col items-center leading-none">
-          <ArrowUp className="h-4 w-4" />
+          <ArrowUp className="w-4 h-4" />
           <span className="mt-0.5 text-[10px] font-semibold tracking-[0.08em]">TOP</span>
         </div>
       </button>

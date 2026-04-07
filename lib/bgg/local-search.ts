@@ -1,6 +1,11 @@
 import { _getSqlClient, _ensureSchema, BGG_BOARDGAME_TABLE } from "@/lib/share/storage";
 import type { ShareSubject } from "@/lib/share/types";
 import type { BggThingItem } from "@/lib/bgg/bgg-api";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const OpenCC = require("opencc-js") as {
+  Converter: (opts: { from: string; to: string }) => (text: string) => string;
+};
+
 
 type BggBoardgameRow = {
   bgg_id: string;
@@ -21,6 +26,13 @@ export interface LocalSearchResult {
 }
 
 const CJK_RE = /[\u4e00-\u9fff\u3400-\u4dbf]/;
+
+const s2t = OpenCC.Converter({ from: "cn", to: "tw" });
+const t2s = OpenCC.Converter({ from: "tw", to: "cn" });
+
+function toSimplifiedAndTraditional(text: string): { simplified: string; traditional: string } {
+  return { simplified: t2s(text), traditional: s2t(text) };
+}
 
 function escapeIlike(input: string): string {
   return input.replace(/%/g, "\\%").replace(/_/g, "\\_");
@@ -83,31 +95,44 @@ export async function searchLocalBoardgames(query: string): Promise<LocalSearchR
   let rows: BggBoardgameRow[];
 
   if (isCjk) {
-    const escaped = escapeIlike(trimmed);
+    const { simplified, traditional } = toSimplifiedAndTraditional(trimmed);
+    const escapedSimplified = escapeIlike(simplified);
+    const escapedTraditional = escapeIlike(traditional);
     rows = (await sql.query(
       `
       SELECT bgg_id, name, localized_names, year_published, cover, thumbnail, genres, bayes_average, users_rated
       FROM ${BGG_BOARDGAME_TABLE}
-      WHERE localized_names::text ILIKE '%' || $1 || '%'
+      WHERE (
+        localized_names::text ILIKE '%' || $1 || '%'
+        OR localized_names::text ILIKE '%' || $2 || '%'
+        OR name ILIKE '%' || $1 || '%'
+        OR name ILIKE '%' || $2 || '%'
+      )
         AND is_expansion = FALSE
-      ORDER BY bayes_average DESC
+      ORDER BY bayes_average DESC, users_rated DESC
       LIMIT 20
       `,
-      [escaped],
+      [escapedSimplified, escapedTraditional],
     )) as BggBoardgameRow[];
   } else {
     const lowered = trimmed.toLowerCase();
+    const escaped = escapeIlike(trimmed);
     rows = (await sql.query(
       `
       SELECT bgg_id, name, localized_names, year_published, cover, thumbnail, genres, bayes_average, users_rated,
              similarity(name, $1) AS sim
       FROM ${BGG_BOARDGAME_TABLE}
-      WHERE (name % $1 OR name_search = $2)
+      WHERE (name % $1 OR name_search = $2 OR name ILIKE '%' || $3 || '%')
         AND is_expansion = FALSE
-      ORDER BY sim DESC, bayes_average DESC
+      ORDER BY
+        CASE WHEN name ILIKE $3 || '%' THEN 0
+             WHEN name ILIKE '%' || $3 || '%' THEN 1
+             ELSE 2
+        END,
+        bayes_average DESC, users_rated DESC
       LIMIT 20
       `,
-      [trimmed, lowered],
+      [trimmed, lowered, escaped],
     )) as BggBoardgameRow[];
   }
 
