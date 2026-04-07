@@ -278,7 +278,7 @@ async function enrichLocalCovers(
 
   const upsertItems = enriched.filter((item) => thingMap.has(String(item.id)));
   if (upsertItems.length > 0) {
-    upsertBggBoardgameFromSearch(upsertItems, thingMap).catch(() => {});
+    upsertBggBoardgameFromSearch(upsertItems, thingMap).catch(() => { });
   }
 
   return { items: enriched, thingMap };
@@ -289,6 +289,7 @@ async function executeSearch(query: string): Promise<BggSearchResult> {
   let needsEnrichIds: string[] = [];
   let localOk = false;
   const isCjk = /[\u4e00-\u9fff\u3400-\u4dbf]/.test(query);
+  const t0 = Date.now();
 
   try {
     const localResult = await searchLocalBoardgames(query);
@@ -302,17 +303,7 @@ async function executeSearch(query: string): Promise<BggSearchResult> {
 
     if (localSufficient) {
       if (needsEnrichIds.length > 0 && !isBggCircuitOpen()) {
-        const { items: enrichedItems, thingMap } = await enrichLocalCovers(localItems, needsEnrichIds);
-        console.log(
-          JSON.stringify({
-            event: "bgg_search",
-            query,
-            source: "local+enrich",
-            resultCount: enrichedItems.length,
-            enrichedCount: needsEnrichIds.length,
-          }),
-        );
-        return { items: enrichedItems, thingMap };
+        enrichLocalCovers(localItems, needsEnrichIds).catch(() => { });
       }
       console.log(
         JSON.stringify({
@@ -320,11 +311,14 @@ async function executeSearch(query: string): Promise<BggSearchResult> {
           query,
           source: "local",
           resultCount: localItems.length,
+          asyncEnrich: needsEnrichIds.length,
+          ms: Date.now() - t0,
         }),
       );
       return { items: localItems, thingMap: new Map() };
     }
-  } catch {
+  } catch (localErr) {
+    console.error("[local-search] error:", localErr instanceof Error ? localErr.message : String(localErr));
     localOk = false;
   }
 
@@ -367,7 +361,7 @@ async function executeSearch(query: string): Promise<BggSearchResult> {
   }
 
   if (bggResult.items.length > 0) {
-    upsertBggBoardgameFromSearch(bggResult.items, bggResult.thingMap).catch(() => {});
+    upsertBggBoardgameFromSearch(bggResult.items, bggResult.thingMap).catch(() => { });
   }
 
   if (localOk && localItems.length > 0 && bggResult.items.length > 0) {
@@ -380,6 +374,7 @@ async function executeSearch(query: string): Promise<BggSearchResult> {
         resultCount: merged.length,
         localCount: localItems.length,
         bggCount: bggResult.items.length,
+        ms: Date.now() - t0,
       }),
     );
     return { items: merged, thingMap: bggResult.thingMap };
@@ -391,6 +386,7 @@ async function executeSearch(query: string): Promise<BggSearchResult> {
       query,
       source: "api",
       resultCount: bggResult.items.length,
+      ms: Date.now() - t0,
     }),
   );
   return bggResult;
