@@ -170,51 +170,143 @@ export default function OpsPanel() {
     }
   }, [running, csvFile, addLog, authHeaders, fetchStats]);
 
+  const readSSEStream = useCallback(async (res: Response) => {
+    const reader = res.body?.getReader();
+    if (!reader) {
+      addLog("error", "详情补充失败: 无法获取响应流");
+      return;
+    }
+
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    const processEvent = (eventType: string, data: string) => {
+      try {
+        const parsed = JSON.parse(data);
+        switch (eventType) {
+          case "connected":
+            addLog("info", `已连接后台任务（${parsed.description || ""}，已有 ${parsed.eventCount} 条历史事件）`);
+            break;
+          case "start":
+            addLog("info", `找到 ${parsed.totalFound} 条待补充（rank ${parsed.minRank}~${parsed.maxRank}），分 ${parsed.totalBatches} 批处理`);
+            break;
+          case "batch": {
+            const status = parsed.failed > 0 ? "warn" : "info";
+            const rr = parsed.rankRange;
+            const rankInfo = rr ? ` [rank ${rr[0]}~${rr[1]}]` : "";
+            addLog(
+              status,
+              `批次 ${parsed.batchIdx + 1}/${parsed.totalBatches}${rankInfo}：更新 ${parsed.enriched}，失败 ${parsed.failed}，跳过 ${parsed.skipped}`,
+            );
+            if (parsed.errors) {
+              for (const errMsg of parsed.errors) {
+                addLog("error", errMsg);
+              }
+            }
+            break;
+          }
+          case "done": {
+            const level = parsed.failed > 0 ? "warn" : "success";
+            addLog(
+              level,
+              `详情补充完成：找到 ${parsed.totalFound}，获取 ${parsed.totalFetched}，更新 ${parsed.enriched}，失败 ${parsed.failed}，跳过 ${parsed.skipped}，耗时 ${parsed.elapsedMs}ms`,
+            );
+            if (parsed.errors) {
+              for (const errMsg of parsed.errors) {
+                addLog("error", errMsg);
+              }
+            }
+            fetchStats();
+            break;
+          }
+          case "error":
+            addLog("error", `详情补充错误: ${parsed.error || "unknown"}`);
+            break;
+          case "heartbeat":
+            break;
+        }
+      } catch {
+        addLog("warn", `SSE 解析异常: ${data}`);
+      }
+    };
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split("\n\n");
+      buffer = parts.pop() || "";
+      for (const part of parts) {
+        let eventType = "message";
+        let eventData = "";
+        for (const line of part.split("\n")) {
+          if (line.startsWith("event: ")) eventType = line.slice(7);
+          else if (line.startsWith("data: ")) eventData = line.slice(6);
+        }
+        if (eventData) processEvent(eventType, eventData);
+      }
+    }
+    if (buffer.trim()) {
+      let eventType = "message";
+      let eventData = "";
+      for (const line of buffer.split("\n")) {
+        if (line.startsWith("event: ")) eventType = line.slice(7);
+        else if (line.startsWith("data: ")) eventData = line.slice(6);
+      }
+      if (eventData) processEvent(eventType, eventData);
+    }
+  }, [addLog, fetchStats]);
+
+  const subscribeEnrichSSE = useCallback(async (url: string) => {
+    const res = await fetch(url);
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      let parsed: { error?: string; description?: string; hint?: string } | null = null;
+      try { parsed = JSON.parse(text); } catch { /* ignore */ }
+
+      if (res.status === 409 && parsed?.hint?.includes("subscribe")) {
+        addLog("info", `后台任务运行中（${parsed.description || ""}），自动订阅进度...`);
+        const subUrl = `${API_BASE}/enrich?action=subscribe&token=${tokenRef.current}`;
+        const subRes = await fetch(subUrl);
+        if (!subRes.ok) {
+          addLog("error", `订阅失败 (${subRes.status})`);
+          return;
+        }
+        await readSSEStream(subRes);
+        return;
+      }
+
+      addLog("error", `详情补充失败 (${res.status}): ${parsed?.error || text || res.statusText}`);
+      return;
+    }
+    await readSSEStream(res);
+  }, [addLog, readSSEStream]);
+
   const runEnrich = useCallback(async () => {
     if (running) return;
     setRunning("enrich");
     const rankFromNum = Math.max(1, Number(enrichRankFrom) || 1);
     const rankToNum = Number(enrichRankTo) || 0;
     const limitNum = Math.max(1, Number(enrichLimit) || 200);
-    const effectiveForce = enrichForce || rankToNum > 0;
+    const effectiveForce = enrichForce;
     const rangeDesc = rankToNum > 0 ? `rank ${rankFromNum}~${rankToNum}` : `rank ${rankFromNum}+`;
     addLog("info", `开始 BGG 详情补充（${rangeDesc}, limit=${limitNum}${effectiveForce ? ", 强制模式" : ""}）...`);
     try {
-      const body: Record<string, unknown> = {
-        batchSize: 20,
-        limit: limitNum,
-        rankFrom: rankFromNum,
-      };
-      if (rankToNum > 0) body.rankTo = rankToNum;
-      if (effectiveForce) body.force = true;
-      const res = await fetch(`${API_BASE}/enrich`, {
-        method: "POST",
-        headers: { ...authHeaders(), "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+      const params = new URLSearchParams({
+        batchSize: "20",
+        limit: String(limitNum),
+        rankFrom: String(rankFromNum),
+        token: tokenRef.current,
       });
-      const data: TaskResult = await res.json();
-      if (data.ok && data.result) {
-        const r = data.result;
-        const level = r.failed > 0 ? "warn" : "success";
-        addLog(
-          level,
-          `详情补充完成：找到 ${r.totalFound}，获取 ${r.totalFetched}，更新 ${r.enriched}，失败 ${r.failed}，跳过 ${r.skipped}，耗时 ${r.elapsedMs}ms`,
-        );
-        if (r.errors && Array.isArray(r.errors)) {
-          for (const errMsg of r.errors) {
-            addLog("error", errMsg);
-          }
-        }
-        fetchStats();
-      } else {
-        addLog("error", `详情补充失败: ${data.error || "unknown"}`);
-      }
+      if (rankToNum > 0) params.set("rankTo", String(rankToNum));
+      if (effectiveForce) params.set("force", "1");
+      await subscribeEnrichSSE(`${API_BASE}/enrich?${params.toString()}`);
     } catch (err) {
       addLog("error", `详情补充异常: ${err instanceof Error ? err.message : "unknown"}`);
     } finally {
       setRunning(null);
     }
-  }, [running, enrichRankFrom, enrichRankTo, enrichLimit, enrichForce, addLog, authHeaders, fetchStats]);
+  }, [running, enrichRankFrom, enrichRankTo, enrichLimit, enrichForce, addLog, subscribeEnrichSSE]);
 
   const runClean = useCallback(async () => {
     if (running) return;
@@ -299,12 +391,12 @@ export default function OpsPanel() {
 
   if (!authed) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="w-full max-w-sm space-y-4 rounded-lg border border-border bg-card p-6 shadow-lg">
-          <h1 className="text-center text-lg font-semibold text-foreground">
+      <div className="flex justify-center items-center min-h-screen bg-background">
+        <div className="p-6 space-y-4 w-full max-w-sm rounded-lg border shadow-lg border-border bg-card">
+          <h1 className="text-lg font-semibold text-center text-foreground">
             运维面板
           </h1>
-          <p className="text-center text-sm text-muted-foreground">
+          <p className="text-sm text-center text-muted-foreground">
             请输入运维密码
           </p>
           <form
@@ -338,17 +430,17 @@ export default function OpsPanel() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-8">
-      <div className="mx-auto max-w-4xl space-y-6">
-        <div className="flex items-center justify-between">
+    <div className="p-4 min-h-screen bg-background md:p-8">
+      <div className="mx-auto space-y-6 max-w-4xl">
+        <div className="flex justify-between items-center">
           <h1 className="text-xl font-bold text-foreground">BGG 数据运维面板</h1>
           <Button variant="ghost" size="sm" onClick={handleLogout}>
             退出
           </Button>
         </div>
 
-        <div className="rounded-lg border border-border bg-card p-4 space-y-4">
-          <div className="flex items-center justify-between">
+        <div className="p-4 space-y-4 rounded-lg border border-border bg-card">
+          <div className="flex justify-between items-center">
             <h2 className="text-base font-semibold text-foreground">数据库统计</h2>
             <Button variant="outline" size="sm" onClick={fetchStats} disabled={!!running}>
               刷新统计
@@ -378,13 +470,13 @@ export default function OpsPanel() {
           )}
         </div>
 
-        <div className="rounded-lg border border-border bg-card p-4 space-y-4">
+        <div className="p-4 space-y-4 rounded-lg border border-border bg-card">
           <h2 className="text-base font-semibold text-foreground">运维操作</h2>
           <div className="grid gap-3 md:grid-cols-2">
-            <div className="rounded-md border border-border bg-background p-4 space-y-3">
+            <div className="p-4 space-y-3 rounded-md border border-border bg-background">
               <div>
                 <h3 className="text-sm font-semibold text-foreground">1. CSV 冷启动导入</h3>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="mt-1 text-xs text-muted-foreground">
                   选择 boardgames_ranks.csv 文件并上传，批量导入桌游基础数据到数据库
                 </p>
               </div>
@@ -420,10 +512,10 @@ export default function OpsPanel() {
                 </Button>
               </div>
             </div>
-            <div className="rounded-md border border-border bg-background p-4 space-y-3">
+            <div className="p-4 space-y-3 rounded-md border border-border bg-background">
               <div>
                 <h3 className="text-sm font-semibold text-foreground">2. BGG 详情补充</h3>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="mt-1 text-xs text-muted-foreground">
                   按 rank 范围从 BGG API 拉取详情（封面、翻译名、分类、机制、设计师等）
                 </p>
               </div>
@@ -463,7 +555,7 @@ export default function OpsPanel() {
                   />
                 </div>
               </div>
-              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+              <label className="flex gap-2 items-center text-xs cursor-pointer text-muted-foreground">
                 <input
                   type="checkbox"
                   checked={enrichForce}
@@ -485,10 +577,10 @@ export default function OpsPanel() {
             </div>
           </div>
 
-          <div className="rounded-md border border-border bg-background p-4 space-y-3">
+          <div className="p-4 space-y-3 rounded-md border border-border bg-background">
             <div>
               <h3 className="text-sm font-semibold text-foreground">3. 数据清洗</h3>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="mt-1 text-xs text-muted-foreground">
                 选择要清空的字段，一键将其置为 NULL。清洗 API 补充字段时会同时重置 api_enriched_at，方便重新执行补充。
               </p>
             </div>
@@ -499,11 +591,10 @@ export default function OpsPanel() {
                   type="button"
                   onClick={() => toggleCleanField(opt.key)}
                   disabled={!!running}
-                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
-                    cleanFields.has(opt.key)
-                      ? "bg-destructive/10 border-destructive text-destructive"
-                      : "bg-muted/50 border-border text-muted-foreground hover:border-foreground/30"
-                  } disabled:opacity-50`}
+                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${cleanFields.has(opt.key)
+                    ? "bg-destructive/10 border-destructive text-destructive"
+                    : "bg-muted/50 border-border text-muted-foreground hover:border-foreground/30"
+                    } disabled:opacity-50`}
                 >
                   {cleanFields.has(opt.key) ? "✕ " : ""}{opt.label}
                 </button>
@@ -532,8 +623,8 @@ export default function OpsPanel() {
             </div>
           </div>
 
-          <div className="rounded bg-muted/50 p-3">
-            <p className="text-xs text-muted-foreground leading-relaxed">
+          <div className="p-3 rounded bg-muted/50">
+            <p className="text-xs leading-relaxed text-muted-foreground">
               <strong>操作顺序：</strong>
               ① 首次部署先执行「CSV 冷启动导入」灌入基础数据 →
               ② 再执行「BGG 详情补充」为条目补充封面、翻译名、分类、机制等 →
@@ -543,7 +634,7 @@ export default function OpsPanel() {
           </div>
         </div>
 
-        <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+        <div className="p-4 space-y-3 rounded-lg border border-border bg-card">
           <h2 className="text-base font-semibold text-foreground">4. BGG /thing 接口调试</h2>
           <p className="text-xs text-muted-foreground">
             输入 BGG ID 查看完整的 /thing API 返回值（含 image、thumbnail、links 等全部字段）
@@ -555,7 +646,7 @@ export default function OpsPanel() {
               value={debugBggId}
               onChange={(e) => setDebugBggId(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") runDebugThing(); }}
-              className="h-8 text-sm flex-1"
+              className="flex-1 h-8 text-sm"
             />
             <Button
               variant="outline"
@@ -576,15 +667,15 @@ export default function OpsPanel() {
               >
                 复制
               </Button>
-              <pre className="max-h-96 overflow-auto rounded-md bg-muted/50 p-3 text-xs font-mono whitespace-pre-wrap break-all">
+              <pre className="overflow-auto p-3 max-h-96 font-mono text-xs whitespace-pre-wrap break-all rounded-md bg-muted/50">
                 {debugResult}
               </pre>
             </div>
           )}
         </div>
 
-        <div className="rounded-lg border border-border bg-card p-4 space-y-2">
-          <div className="flex items-center justify-between">
+        <div className="p-4 space-y-2 rounded-lg border border-border bg-card">
+          <div className="flex justify-between items-center">
             <h2 className="text-base font-semibold text-foreground">操作日志</h2>
             <div className="flex gap-2">
               {logs.length > 0 && (
@@ -616,22 +707,21 @@ export default function OpsPanel() {
               )}
             </div>
           </div>
-          <div className="max-h-64 overflow-y-auto space-y-1">
+          <div className="overflow-y-auto space-y-1 max-h-64">
             {logs.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-2">暂无日志</p>
+              <p className="py-2 text-sm text-muted-foreground">暂无日志</p>
             ) : (
               logs.map((entry) => (
                 <div
                   key={entry.id}
-                  className={`text-xs font-mono leading-relaxed ${
-                    entry.level === "error"
-                      ? "text-destructive"
-                      : entry.level === "success"
-                        ? "text-green-600 dark:text-green-400"
-                        : entry.level === "warn"
-                          ? "text-yellow-600 dark:text-yellow-400"
-                          : "text-muted-foreground"
-                  }`}
+                  className={`text-xs font-mono leading-relaxed ${entry.level === "error"
+                    ? "text-destructive"
+                    : entry.level === "success"
+                      ? "text-green-600 dark:text-green-400"
+                      : entry.level === "warn"
+                        ? "text-yellow-600 dark:text-yellow-400"
+                        : "text-muted-foreground"
+                    }`}
                 >
                   <span className="opacity-60">[{entry.time}]</span>{" "}
                   {entry.message}
@@ -655,12 +745,11 @@ function StatCard({
   small?: boolean;
 }) {
   return (
-    <div className="rounded-md border border-border bg-background p-3">
+    <div className="p-3 rounded-md border border-border bg-background">
       <p className="text-xs text-muted-foreground">{label}</p>
       <p
-        className={`font-semibold text-foreground ${
-          small ? "text-sm truncate" : "text-lg"
-        }`}
+        className={`font-semibold text-foreground ${small ? "text-sm truncate" : "text-lg"
+          }`}
       >
         {typeof value === "number" ? value.toLocaleString() : value}
       </p>

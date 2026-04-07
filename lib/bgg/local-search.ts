@@ -58,20 +58,37 @@ function parseJsonArray(raw: unknown): string[] | undefined {
   return undefined;
 }
 
-function pickLocalizedName(row: BggBoardgameRow): string | undefined {
+function pickLocalizedName(row: BggBoardgameRow, query?: string): string | undefined {
   const names = parseJsonArray(row.localized_names);
-  if (names && names.length > 0) {
-    const cjk = names.find((n) => CJK_RE.test(n));
-    return cjk || names[0];
+  if (!names || names.length === 0) return undefined;
+
+  if (query) {
+    const isCjk = CJK_RE.test(query);
+    if (isCjk) {
+      const { simplified, traditional } = toSimplifiedAndTraditional(query);
+      const sLower = simplified.toLowerCase();
+      const tLower = traditional.toLowerCase();
+      const matched = names.find((n) => {
+        const nLower = n.toLowerCase();
+        return nLower.includes(sLower) || nLower.includes(tLower);
+      });
+      if (matched) return matched;
+    } else {
+      const qLower = query.toLowerCase();
+      const matched = names.find((n) => n.toLowerCase().includes(qLower));
+      if (matched) return matched;
+    }
   }
-  return undefined;
+
+  const cjk = names.find((n) => CJK_RE.test(n));
+  return cjk || names[0];
 }
 
-function rowToSubject(row: BggBoardgameRow): ShareSubject {
+function rowToSubject(row: BggBoardgameRow, query?: string): ShareSubject {
   return {
     id: row.bgg_id,
     name: row.name,
-    localizedName: pickLocalizedName(row),
+    localizedName: pickLocalizedName(row, query),
     cover: row.cover || row.thumbnail || null,
     releaseYear: row.year_published ?? undefined,
     genres: parseJsonArray(row.genres),
@@ -140,7 +157,7 @@ export async function searchLocalBoardgames(query: string): Promise<LocalSearchR
   const needsEnrich: string[] = [];
 
   for (const row of rows) {
-    items.push(rowToSubject(row));
+    items.push(rowToSubject(row, trimmed));
     if (!row.cover) {
       needsEnrich.push(row.bgg_id);
     }

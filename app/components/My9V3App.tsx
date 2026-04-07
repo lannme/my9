@@ -671,12 +671,12 @@ export default function My9V3App({
   }
 
   return (
-    <main className="min-h-screen bg-background px-4 py-16 text-foreground">
-      <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-4">
+    <main className="px-4 py-16 min-h-screen bg-background text-foreground">
+      <div className="flex flex-col gap-4 items-center mx-auto w-full max-w-2xl">
         <header className="space-y-3 text-center">
-          <h1 className="whitespace-nowrap text-3xl font-bold leading-tight tracking-tight text-foreground sm:text-4xl">
-              {shareTitle}
-            </h1>
+          <h1 className="text-3xl font-bold tracking-tight leading-tight whitespace-nowrap text-foreground sm:text-4xl">
+            {shareTitle}
+          </h1>
           <p className="text-sm text-muted-foreground">{kindMeta.subtitle}</p>
           <button
             type="button"
@@ -684,7 +684,7 @@ export default function My9V3App({
             onClick={() => router.push(`/trends?kind=${kind}`)}
           >
             大家的构成
-            <ChevronRight className="h-4 w-4 text-sky-500 dark:text-sky-300" aria-hidden="true" />
+            <ChevronRight className="w-4 h-4 text-sky-500 dark:text-sky-300" aria-hidden="true" />
           </button>
           <p className="text-sm text-amber-600 dark:text-amber-400">{/* 还没想好要做什么…… */}</p>
           <SupportButton />
@@ -697,14 +697,14 @@ export default function My9V3App({
         ) : null}
 
         {isReadonly ? (
-          <div className="flex flex-col items-center gap-2">
+          <div className="flex flex-col gap-2 items-center">
             <p className="rounded-full border border-amber-200 bg-amber-50 px-4 py-1.5 text-xs font-semibold text-amber-700 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-300">
               这是共享页面（只读）
             </p>
             <p className="text-sm text-muted-foreground">创作者: {creatorName.trim() || "匿名"}</p>
             <button
               type="button"
-              className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-5 py-2 text-sm font-bold text-card-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+              className="inline-flex gap-2 justify-center items-center px-5 py-2 text-sm font-bold rounded-full border transition-colors border-border bg-card text-card-foreground hover:bg-accent hover:text-accent-foreground"
               onClick={() => router.push(`/${kind}`)}
             >
               前往填写页面
@@ -712,21 +712,21 @@ export default function My9V3App({
           </div>
         ) : (
           <div className="w-full max-w-xl">
-            <label className="mb-2 block text-sm font-semibold text-foreground">创作者（推荐填写）</label>
+            <label className="block mb-2 text-sm font-semibold text-foreground">创作者（推荐填写）</label>
             <Input
               value={creatorName}
               onChange={(event) => setCreatorName(event.target.value.slice(0, 40))}
               placeholder="输入你的昵称"
               className="w-full rounded-xl border-border bg-card px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:ring-sky-200 dark:focus-visible:ring-sky-900"
             />
-            <p className="mt-1 text-right text-xs text-muted-foreground">{creatorName.length}/40</p>
+            <p className="mt-1 text-xs text-right text-muted-foreground">{creatorName.length}/40</p>
           </div>
         )}
 
         {loadingShare ? (
           <p className="text-sm text-muted-foreground">正在加载共享页面...</p>
         ) : (
-          <div className="mx-auto w-full rounded-xl border-4 border-background bg-card p-1 shadow-2xl ring-1 ring-border/70 sm:p-4">
+          <div className="p-1 mx-auto w-full rounded-xl border-4 ring-1 shadow-2xl border-background bg-card ring-border/70 sm:p-4">
             <NineGridBoard
               games={games}
               subjectLabel={kindMeta.label}
@@ -758,7 +758,7 @@ export default function My9V3App({
         ) : null}
 
         {isReadonly ? (
-          <div className="flex w-full flex-col items-center gap-3">
+          <div className="flex flex-col gap-3 items-center w-full">
             <SharePlatformActions
               kind={kind}
               shareId={shareId}

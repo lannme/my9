@@ -193,7 +193,7 @@ function mergeLocalAndBggResults(
   const seen = new Set<string>();
   const merged: ShareSubject[] = [];
 
-  for (const item of bggItems) {
+  for (const item of localItems) {
     const key = String(item.id);
     if (!seen.has(key)) {
       seen.add(key);
@@ -201,7 +201,7 @@ function mergeLocalAndBggResults(
     }
   }
 
-  for (const item of localItems) {
+  for (const item of bggItems) {
     const key = String(item.id);
     if (!seen.has(key)) {
       seen.add(key);
@@ -288,6 +288,7 @@ async function executeSearch(query: string): Promise<BggSearchResult> {
   let localItems: ShareSubject[] = [];
   let needsEnrichIds: string[] = [];
   let localOk = false;
+  const isCjk = /[\u4e00-\u9fff\u3400-\u4dbf]/.test(query);
 
   try {
     const localResult = await searchLocalBoardgames(query);
@@ -295,7 +296,11 @@ async function executeSearch(query: string): Promise<BggSearchResult> {
     needsEnrichIds = localResult.needsEnrich;
     localOk = true;
 
-    if (localItems.length >= LOCAL_SEARCH_SUFFICIENT_COUNT) {
+    const localSufficient = isCjk
+      ? localItems.length > 0
+      : localItems.length >= LOCAL_SEARCH_SUFFICIENT_COUNT;
+
+    if (localSufficient) {
       if (needsEnrichIds.length > 0 && !isBggCircuitOpen()) {
         const { items: enrichedItems, thingMap } = await enrichLocalCovers(localItems, needsEnrichIds);
         console.log(
