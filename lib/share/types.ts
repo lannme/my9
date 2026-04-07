@@ -22,7 +22,7 @@ export type ShareGame = ShareSubject;
 
 export interface SubjectSearchResponse {
   ok: boolean;
-  source: "bangumi" | "tmdb" | "itunes" | "mixed" | "bgg";
+  source: "bgg";
   kind: SubjectKind;
   items: ShareSubject[];
   noResultQuery: string | null;

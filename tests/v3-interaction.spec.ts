@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 
 const SHARE_ID = "60fe04cbe7874fa2";
-const DEFAULT_KIND = "game";
+const DEFAULT_KIND = "boardgame";
 const ONE_PIXEL_PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9YxX5iQAAAAASUVORK5CYII=";
 
@@ -27,112 +27,10 @@ function createFilledGames() {
 }
 
 function buildSearchResponse(query: string, kind = DEFAULT_KIND) {
-  if (kind === "work") {
-    if (query.toLowerCase() === "work-tmdb-movie") {
-      return {
-        ok: true,
-        source: "mixed",
-        kind,
-        items: [
-          {
-            id: "tmdb:movie:550",
-            name: "Fight Club",
-            localizedName: "搏击俱乐部",
-            cover: "https://image.tmdb.org/t/p/w500/fight-club.jpg",
-            releaseYear: 1999,
-            genres: ["剧情"],
-          },
-        ],
-        noResultQuery: null,
-      };
-    }
-
-    if (query.toLowerCase() === "work-itunes-song") {
-      return {
-        ok: true,
-        source: "mixed",
-        kind,
-        items: [
-          {
-            id: "itunes:song:909253",
-            name: "Taylor Swift",
-            localizedName: "Love Story",
-            cover: "https://is1-ssl.mzstatic.com/image/thumb/Music123/v4/mock/cover/100x100bb.jpg",
-            releaseYear: 2008,
-            genres: ["Pop"],
-            storeUrls: {
-              apple: "https://music.apple.com/cn/album/love-story/123456?i=909253",
-            },
-          },
-        ],
-        noResultQuery: null,
-      };
-    }
-
-    const hash = Array.from(query).reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const id = Math.max(1000, hash + 900);
-    return {
-      ok: true,
-      source: "mixed",
-      kind,
-      items: [
-        {
-          id: `tmdb:movie:${id}`,
-          name: `Work ${query}`,
-          localizedName: `作品 ${query}`,
-          cover: `https://image.tmdb.org/t/p/w500/work-${id}.jpg`,
-          releaseYear: 2020,
-          genres: ["剧情"],
-        },
-      ],
-      noResultQuery: null,
-    };
-  }
-
-  if (kind === "character") {
-    return {
-      ok: true,
-      source: "bangumi",
-      kind,
-      items: [
-        {
-          id: 88001,
-          name: "アルトリア・ペンドラゴン",
-          localizedName: "阿尔托莉雅·潘德拉贡",
-          cover: "https://lain.bgm.tv/r/400/pic/crt/l/mock-character.jpg",
-          releaseYear: 2004,
-          gameTypeId: 0,
-          platforms: [],
-        },
-      ],
-      noResultQuery: null,
-    };
-  }
-
-  if (kind === "person") {
-    return {
-      ok: true,
-      source: "bangumi",
-      kind,
-      items: [
-        {
-          id: 99002,
-          name: "宮崎駿",
-          localizedName: "宫崎骏",
-          cover: "https://lain.bgm.tv/r/400/pic/crt/l/mock-person.jpg",
-          releaseYear: 1941,
-          gameTypeId: 0,
-          platforms: [],
-        },
-      ],
-      noResultQuery: null,
-    };
-  }
-
   if (query.toLowerCase() === "zelda") {
     return {
       ok: true,
-      source: "bangumi",
+      source: "bgg",
       kind,
       items: [
         {
@@ -162,7 +60,7 @@ function buildSearchResponse(query: string, kind = DEFAULT_KIND) {
   const id = Math.max(1000, hash + 900);
   return {
     ok: true,
-    source: "bangumi",
+    source: "bgg",
     kind,
     items: [
       {
@@ -292,86 +190,13 @@ async function installClientSpies(page: Page) {
 }
 
 async function fillSlot(page: Page, slot: number, query: string) {
-  await page.getByLabel(`选择第 ${slot} 格游戏`).click();
-  const searchInput = page.getByPlaceholder("输入游戏名");
+  await page.getByLabel(`选择第 ${slot} 格桌游`).click();
+  const searchInput = page.getByPlaceholder("输入桌游名称");
   await searchInput.fill(query);
   await searchInput.press("Enter");
   await expect(page.locator("#search-results-list button").first()).toBeVisible();
   await searchInput.press("Enter");
   await expect(page.getByText(`已填入第 ${slot} 格`)).toBeVisible();
-}
-
-async function fillSlotByKind(page: Page, options: {
-  slot: number;
-  subjectLabel: string;
-  searchPlaceholder: string;
-  query: string;
-}) {
-  const { slot, subjectLabel, searchPlaceholder, query } = options;
-  await page.getByLabel(`选择第 ${slot} 格${subjectLabel}`).click();
-  const searchInput = page.getByPlaceholder(searchPlaceholder);
-  await searchInput.fill(query);
-  await searchInput.press("Enter");
-  await expect(page.locator("#search-results-list button").first()).toBeVisible();
-  await searchInput.press("Enter");
-  await expect(page.getByText(`已填入第 ${slot} 格`)).toBeVisible();
-}
-
-async function mockTrendsApi(page: Page) {
-  await page.route(/\/api\/trends\?/, async (route) => {
-    const url = new URL(route.request().url());
-    const kind = (url.searchParams.get("kind") || DEFAULT_KIND).trim();
-    const period = (url.searchParams.get("period") || "24h").trim();
-    const view = (url.searchParams.get("view") || "overall").trim();
-
-    const trendId = kind === "character"
-      ? "88001"
-      : kind === "person"
-        ? "99002"
-        : kind === "work"
-          ? "tmdb:movie:77001"
-          : "77001";
-    const trendName = kind === "character"
-      ? "测试角色"
-      : kind === "person"
-        ? "测试人物"
-        : kind === "work"
-          ? "测试作品"
-          : "测试条目";
-
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        ok: true,
-        period,
-        view,
-        sampleCount: 31,
-        range: {
-          from: Date.now() - 24 * 60 * 60 * 1000,
-          to: Date.now(),
-        },
-        lastUpdatedAt: Date.now(),
-        items: [
-          {
-            key: `${kind}:${trendId}`,
-            label: trendName,
-            count: 12,
-            games: [
-              {
-                id: trendId,
-                name: trendName,
-                localizedName: trendName,
-                cover: "https://lain.bgm.tv/r/400/pic/cover/l/trend.jpg",
-                releaseYear: 2020,
-                count: 12,
-              },
-            ],
-          },
-        ],
-      }),
-    });
-  });
 }
 
 test.describe("v3 interaction", () => {
@@ -385,14 +210,11 @@ test.describe("v3 interaction", () => {
   test("首页显示类型选择并可进入填写页", async ({ page }) => {
     test.setTimeout(120_000);
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "构成我的九部" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "游戏" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "动画" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "电视剧" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "电影" })).toBeVisible();
+    await expect(page).toHaveURL("/boardgame", { timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: "构成我的九款桌游" })).toBeVisible();
     await expect(page.getByRole("link", { name: "开始填写！" })).toBeVisible();
     await page.getByRole("link", { name: "开始填写！" }).click();
-    await expect(page).toHaveURL("/game", { timeout: 30_000 });
+    await expect(page).toHaveURL("/boardgame", { timeout: 30_000 });
     await expect(page.getByText("0 / 9 已选择")).toBeVisible();
     await expect(page.getByRole("button", { name: "撤销" })).toBeDisabled();
     await expect(page.getByRole("button", { name: "清空" })).toBeDisabled();
@@ -404,31 +226,31 @@ test.describe("v3 interaction", () => {
 
   test("非法 kind 路径会回落首页", async ({ page }) => {
     await page.goto("/76c33a16-ef44-47ed-b239-d38b24206d95");
-    await expect(page).toHaveURL("/", { timeout: 30_000 });
-    await expect(page.getByRole("heading", { name: "构成我的九部" })).toBeVisible();
+    await expect(page).toHaveURL("/boardgame", { timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: "构成我的九款桌游" })).toBeVisible();
   });
 
   test("搜索键盘选择、重复项互换与评论剧透折叠生效", async ({ page }) => {
-    await page.goto("/game");
+    await page.goto("/boardgame");
 
-    await page.getByLabel("选择第 1 格游戏").click();
-    const firstSearchInput = page.getByPlaceholder("输入游戏名");
+    await page.getByLabel("选择第 1 格桌游").click();
+    const firstSearchInput = page.getByPlaceholder("输入桌游名称");
     await firstSearchInput.fill("zelda");
     await firstSearchInput.press("Enter");
     await expect(page.locator("#search-results-list button").first()).toBeVisible();
     await firstSearchInput.press("Enter");
     await expect(page.getByText("已填入第 1 格")).toBeVisible();
 
-    await page.getByLabel("选择第 2 格游戏").click();
-    const secondSearchInput = page.getByPlaceholder("输入游戏名");
+    await page.getByLabel("选择第 2 格桌游").click();
+    const secondSearchInput = page.getByPlaceholder("输入桌游名称");
     await secondSearchInput.fill("q2");
     await secondSearchInput.press("Enter");
     await expect(page.locator("#search-results-list button").first()).toBeVisible();
     await secondSearchInput.press("Enter");
     await expect(page.getByText("已填入第 2 格")).toBeVisible();
 
-    await page.getByLabel("选择第 2 格游戏").click();
-    const swapSearchInput = page.getByPlaceholder("输入游戏名");
+    await page.getByLabel("选择第 2 格桌游").click();
+    const swapSearchInput = page.getByPlaceholder("输入桌游名称");
     await swapSearchInput.fill("zelda");
     await swapSearchInput.press("Enter");
     await expect(page.locator("#search-results-list button").first()).toBeVisible();
@@ -436,7 +258,7 @@ test.describe("v3 interaction", () => {
     await expect(page.getByText("已与第 1 格互换")).toBeVisible();
 
     const draftIds = await page.evaluate(() => {
-      const raw = localStorage.getItem("my-nine-game:v1");
+      const raw = localStorage.getItem("my-nine-boardgame:v1");
       if (!raw) return [];
       const parsed = JSON.parse(raw) as { games?: Array<{ id?: number | string } | null> };
       if (!Array.isArray(parsed.games)) return [];
@@ -455,10 +277,10 @@ test.describe("v3 interaction", () => {
   });
 
   test("回车提交搜索后不会自动选中首项", async ({ page }) => {
-    await page.goto("/game");
+    await page.goto("/boardgame");
 
-    await page.getByLabel("选择第 1 格游戏").click();
-    const searchInput = page.getByPlaceholder("输入游戏名");
+    await page.getByLabel("选择第 1 格桌游").click();
+    const searchInput = page.getByPlaceholder("输入桌游名称");
     await searchInput.fill("zelda");
     await searchInput.press("Enter");
 
@@ -468,18 +290,18 @@ test.describe("v3 interaction", () => {
   });
 
   test("重新打开搜索窗口时保留上次搜索结果", async ({ page }) => {
-    await page.goto("/game");
+    await page.goto("/boardgame");
 
-    await page.getByLabel("选择第 1 格游戏").click();
-    const firstSearchInput = page.getByPlaceholder("输入游戏名");
+    await page.getByLabel("选择第 1 格桌游").click();
+    const firstSearchInput = page.getByPlaceholder("输入桌游名称");
     await firstSearchInput.fill("zelda");
     await firstSearchInput.press("Enter");
     await expect(page.locator("#search-results-list button").first()).toBeVisible();
     await expect(page.locator("#search-results-list").getByText("塞尔达传说")).toBeVisible();
     await page.getByRole("button", { name: "Close" }).click();
 
-    await page.getByLabel("选择第 2 格游戏").click();
-    const reopenedSearchInput = page.getByPlaceholder("输入游戏名");
+    await page.getByLabel("选择第 2 格桌游").click();
+    const reopenedSearchInput = page.getByPlaceholder("输入桌游名称");
     await expect(reopenedSearchInput).toHaveValue("zelda");
     await expect(page.locator("#search-results-list").getByText("塞尔达传说")).toBeVisible();
   });
@@ -492,10 +314,10 @@ test.describe("v3 interaction", () => {
       }
     });
 
-    await page.goto("/game");
+    await page.goto("/boardgame");
 
-    await page.getByLabel("选择第 1 格游戏").click();
-    const firstSearchInput = page.getByPlaceholder("输入游戏名");
+    await page.getByLabel("选择第 1 格桌游").click();
+    const firstSearchInput = page.getByPlaceholder("输入桌游名称");
     await firstSearchInput.fill("zelda");
     await firstSearchInput.press("Enter");
     await expect(page.locator("#search-results-list").getByText("塞尔达传说")).toBeVisible();
@@ -503,8 +325,8 @@ test.describe("v3 interaction", () => {
 
     await page.reload();
 
-    await page.getByLabel("选择第 2 格游戏").click();
-    const secondSearchInput = page.getByPlaceholder("输入游戏名");
+    await page.getByLabel("选择第 2 格桌游").click();
+    const secondSearchInput = page.getByPlaceholder("输入桌游名称");
     await secondSearchInput.fill("  Zelda   ");
     await secondSearchInput.press("Enter");
     await expect(page.locator("#search-results-list").getByText("塞尔达传说")).toBeVisible();
@@ -513,10 +335,10 @@ test.describe("v3 interaction", () => {
   });
 
   test("填写页刷新后保留本地缓存草稿", async ({ page }) => {
-    await page.goto("/game");
+    await page.goto("/boardgame");
     await page.getByPlaceholder("输入你的昵称").fill("缓存玩家");
-    await page.getByLabel("选择第 1 格游戏").click();
-    const searchInput = page.getByPlaceholder("输入游戏名");
+    await page.getByLabel("选择第 1 格桌游").click();
+    const searchInput = page.getByPlaceholder("输入桌游名称");
     await searchInput.fill("zelda");
     await searchInput.press("Enter");
     await expect(page.locator("#search-results-list button").first()).toBeVisible();
@@ -531,7 +353,7 @@ test.describe("v3 interaction", () => {
   });
 
   test("未填满可点击保存，需单次确认", async ({ page }) => {
-    await page.goto("/game");
+    await page.goto("/boardgame");
     await fillSlot(page, 1, "zelda");
 
     let dialogIndex = 0;
@@ -547,7 +369,7 @@ test.describe("v3 interaction", () => {
 
   test("9/9 保存后跳只读页，且只读操作锁定", async ({ page }) => {
     test.setTimeout(120_000);
-    await page.goto("/game");
+    await page.goto("/boardgame");
     for (let slot = 1; slot <= 9; slot += 1) {
       await fillSlot(page, slot, `q${slot}`);
     }
@@ -568,7 +390,7 @@ test.describe("v3 interaction", () => {
   });
 
   test("生成分享图片预览时会通过 wsrv 加载封面", async ({ page }) => {
-    await page.goto("/game");
+    await page.goto("/boardgame");
     await fillSlot(page, 1, "zelda");
 
     page.on("dialog", async (dialog) => {
@@ -710,133 +532,6 @@ test.describe("v3 interaction", () => {
     await page.goto(`/${DEFAULT_KIND}/s/${SHARE_ID}${encodeURIComponent("申请恢复访问")}`);
     await expect(page).toHaveURL(`/${DEFAULT_KIND}/s/${SHARE_ID}`, { timeout: 30_000 });
     await expect(page.getByText("这是共享页面（只读）")).toBeVisible();
-  });
-
-  test("不同类型表格草稿隔离，创作者全局共享", async ({ page }) => {
-    await page.goto("/anime");
-    await page.getByPlaceholder("输入你的昵称").fill("全局玩家A");
-    await page.getByLabel("选择第 1 格动画").click();
-    const animeSearchInput = page.getByPlaceholder("输入动画名称");
-    await animeSearchInput.fill("q1");
-    await animeSearchInput.press("Enter");
-    await expect(page.locator("#search-results-list button").first()).toBeVisible();
-    await animeSearchInput.press("Enter");
-    await expect(page.getByText("已填入第 1 格")).toBeVisible();
-
-    await page.goto("/game");
-    await expect(page.getByPlaceholder("输入你的昵称")).toHaveValue("全局玩家A");
-    await expect(page.getByText("0 / 9 已选择")).toBeVisible();
-    await page.getByPlaceholder("输入你的昵称").fill("全局玩家B");
-
-    await page.goto("/anime");
-    await expect(page.getByPlaceholder("输入你的昵称")).toHaveValue("全局玩家B");
-    await expect(page.getByText("1 / 9 已选择")).toBeVisible();
-
-  });
-
-  test("角色与人物分享页条目外链指向 Bangumi 角色/人物页", async ({ page }) => {
-    const cases = [
-      {
-        kind: "character",
-        subjectLabel: "角色",
-        searchPlaceholder: "输入角色名称",
-        segment: "character",
-        localizedName: "阿尔托莉雅·潘德拉贡",
-      },
-      {
-        kind: "person",
-        subjectLabel: "人物",
-        searchPlaceholder: "输入人物名称",
-        segment: "person",
-        localizedName: "宫崎骏",
-      },
-    ] as const;
-
-    for (const item of cases) {
-      await page.goto(`/${item.kind}`);
-      await fillSlotByKind(page, {
-        slot: 1,
-        subjectLabel: item.subjectLabel,
-        searchPlaceholder: item.searchPlaceholder,
-        query: `${item.kind}-q1`,
-      });
-      await expect(page.locator("article h3", { hasText: item.localizedName }).first()).toBeVisible();
-
-      page.once("dialog", async (dialog) => {
-        await dialog.accept();
-      });
-      await page.getByRole("button", { name: /^还差 8 .可保存$/ }).click();
-      await expect(page).toHaveURL(`/${item.kind}/s/${SHARE_ID}`, { timeout: 30_000 });
-
-      const link = page.getByTitle("在 Bangumi 查看").first();
-      await expect(link).toHaveAttribute(
-        "href",
-        new RegExp(`^https://bgm\\.tv/${item.segment}/\\d+$`)
-      );
-    }
-  });
-
-  test("作品分享页条目外链会按条目来源跳转 TMDB/Apple Music", async ({ page }) => {
-    await page.goto("/work");
-
-    await fillSlotByKind(page, {
-      slot: 1,
-      subjectLabel: "作品",
-      searchPlaceholder: "输入作品名称",
-      query: "work-tmdb-movie",
-    });
-    await fillSlotByKind(page, {
-      slot: 2,
-      subjectLabel: "作品",
-      searchPlaceholder: "输入作品名称",
-      query: "work-itunes-song",
-    });
-
-    page.once("dialog", async (dialog) => {
-      await dialog.accept();
-    });
-    await page.getByRole("button", { name: /^还差 7 .可保存$/ }).click();
-    await expect(page).toHaveURL(`/work/s/${SHARE_ID}`, { timeout: 30_000 });
-
-    const tmdbLink = page.getByTitle("在 TMDB 查看").first();
-    await expect(tmdbLink).toHaveAttribute("href", "https://www.themoviedb.org/movie/550");
-
-    const appleLink = page.getByTitle("在 Apple Music 查看").first();
-    await expect(appleLink).toHaveAttribute(
-      "href",
-      "https://music.apple.com/cn/album/love-story/123456?i=909253"
-    );
-  });
-
-  test("趋势页角色与人物外链分别指向 Bangumi 角色/人物页", async ({ page }) => {
-    await mockTrendsApi(page);
-
-    await page.goto("/trends?kind=character&period=24h&view=year");
-    await page.getByRole("button", { name: "今天" }).click();
-    await expect(page.getByRole("button", { name: "类型" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "现代" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "经典" })).toHaveCount(0);
-
-    const trendLink = page.locator('a[title="在 Bangumi 查看"]').first();
-    await expect(trendLink).toHaveAttribute("href", "https://bgm.tv/character/88001", {
-      timeout: 15_000,
-    });
-
-    await page.getByRole("button", { name: "人物" }).click();
-    await expect(trendLink).toHaveAttribute("href", "https://bgm.tv/person/99002", {
-      timeout: 15_000,
-    });
-  });
-
-  test("趋势页作品外链会按条目来源指向 TMDB", async ({ page }) => {
-    await mockTrendsApi(page);
-
-    await page.goto("/trends?kind=work&period=24h&view=overall");
-    await page.getByRole("button", { name: "今天" }).click();
-    const trendLink = page.locator('a[title="在 TMDB 查看"]').first();
-    await expect(trendLink).toHaveAttribute("href", "https://www.themoviedb.org/movie/77001", {
-      timeout: 15_000,
-    });
   });
 
   test("移动端分享按钮顺序为图片在上链接在下", async ({ page }) => {

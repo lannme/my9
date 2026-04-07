@@ -7,7 +7,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: ["/", "/game", "/anime", "/tv", "/movie", "/manga", "/lightnovel", "/work"],
+        allow: ["/", "/boardgame"],
         disallow: ["/api/", "/trends", "/*/s/*", "/ops-x7k9m2-panel"],
       },
     ],

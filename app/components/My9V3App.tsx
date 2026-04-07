@@ -280,7 +280,7 @@ export default function My9V3App({
           return;
         }
 
-        const responseKind = parseSubjectKind(json.kind) ?? "game";
+        const responseKind = parseSubjectKind(json.kind) ?? "boardgame";
         if (responseKind !== kind) {
           setToast({ kind: "error", message: "分享类型与页面不匹配" });
           setLoadingShare(false);
