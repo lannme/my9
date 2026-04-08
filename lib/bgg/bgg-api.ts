@@ -1529,6 +1529,25 @@ export async function fetchHotItems(params: BggHotParams): Promise<BggHotRespons
  * 在 BGG 数据库中搜索条目。默认为模糊搜索，可设置 exact=1 进行精确匹配。
  * 搜索结果只包含基本信息（ID、名称、年份），如需详情需再调用 fetchThingItems。
  *
+ * ## 多语言搜索行为（2026-04 实测）
+ *
+ * BGG Search API 支持中文、日文等非拉丁语系查询，会匹配条目的 alternate name。
+ *
+ * | 查询语言 | 示例       | 结果数 | 响应时间 | 匹配方式                    |
+ * |---------|-----------|-------|---------|---------------------------|
+ * | 中文     | "铁路"     | 7     | ~740ms  | alternate name 精确包含匹配 |
+ * | 中文     | "卡坦岛"   | 1     | ~550ms  | alternate name 精确匹配     |
+ * | 中文     | "璀璨宝石" | 5     | ~260ms  | alternate name 精确匹配     |
+ * | 日文     | "カタン"   | 9     | ~290ms  | alternate name 精确包含匹配 |
+ * | 英文     | "catan"   | 141   | ~1000ms | primary + alternate name   |
+ * | 英文     | "railway" | 210   | ~890ms  | primary + alternate name   |
+ *
+ * 关键发现：
+ * - CJK 查询返回结果远少于英文（通常 < 10 条），因为只匹配已录入的翻译名。
+ * - CJK 查询响应速度通常更快（结果少 → 传输小）。
+ * - 中文搜索匹配的是社区维护的 alternate name，非所有桌游都有中文名。
+ * - 搜索不支持模糊/拼音匹配，只做子串精确匹配。
+ *
  * @example
  * ```ts
  * // 模糊搜索桌游
