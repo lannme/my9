@@ -137,10 +137,98 @@ function extractItemData(item) {
     .filter(Boolean)
     .slice(0, 5);
 
+  const mechanics = links
+    .filter((l) => l.type === "boardgamemechanic")
+    .map((l) => l.value)
+    .filter(Boolean);
+
+  const designers = links
+    .filter((l) => l.type === "boardgamedesigner")
+    .map((l) => l.value)
+    .filter(Boolean);
+
+  const artists = links
+    .filter((l) => l.type === "boardgameartist")
+    .map((l) => l.value)
+    .filter(Boolean);
+
+  const publishers = links
+    .filter((l) => l.type === "boardgamepublisher")
+    .map((l) => l.value)
+    .filter(Boolean);
+
+  const families = links
+    .filter((l) => l.type === "boardgamefamily")
+    .map((l) => l.value)
+    .filter(Boolean);
+
   const ratings = item.statistics?.ratings;
   const bayesAverage = parseFloat0(ratings?.bayesaverage?.value);
   const average = parseFloat0(ratings?.average?.value);
   const usersRated = parseInt0(ratings?.usersrated?.value);
+  const numComments = parseInt0(ratings?.numcomments?.value);
+  const averageWeight = parseFloat0(ratings?.averageweight?.value);
+  const numWeights = parseInt0(ratings?.numweights?.value);
+  const stddev = parseFloat0(ratings?.stddev?.value);
+  const median = parseFloat0(ratings?.median?.value);
+  const owned = parseInt0(ratings?.owned?.value);
+  const wanting = parseInt0(ratings?.wanting?.value);
+  const wishing = parseInt0(ratings?.wishing?.value);
+  const trading = parseInt0(ratings?.trading?.value);
+
+  const minPlayers = parseInt0(item.minplayers?.value) || null;
+  const maxPlayers = parseInt0(item.maxplayers?.value) || null;
+  const playingTime = parseInt0(item.playingtime?.value) || null;
+  const minPlaytime = parseInt0(item.minplaytime?.value) || null;
+  const maxPlaytime = parseInt0(item.maxplaytime?.value) || null;
+  const minAge = parseInt0(item.minage?.value) || null;
+
+  const polls = toArray(item.poll);
+
+  let suggestedNumplayers = null;
+  const npPoll = polls.find((p) => p.name === "suggested_numplayers");
+  if (npPoll) {
+    const entries = [];
+    for (const r of toArray(npPoll.results)) {
+      if (!r.numplayers) continue;
+      const votes = {};
+      for (const v of toArray(r.result)) {
+        if (v.value && v.numvotes) votes[v.value] = parseInt0(v.numvotes);
+      }
+      entries.push({ numplayers: r.numplayers, ...votes });
+    }
+    if (entries.length > 0) suggestedNumplayers = entries;
+  }
+
+  let suggestedPlayerage = null;
+  const agePoll = polls.find((p) => p.name === "suggested_playerage");
+  if (agePoll) {
+    let maxVotes = 0;
+    for (const r of toArray(agePoll.results)) {
+      for (const v of toArray(r.result)) {
+        const nv = parseInt0(v.numvotes);
+        if (nv > maxVotes) {
+          maxVotes = nv;
+          suggestedPlayerage = v.value || null;
+        }
+      }
+    }
+  }
+
+  let languageDependence = null;
+  const langPoll = polls.find((p) => p.name === "language_dependence");
+  if (langPoll) {
+    let maxVotes = 0;
+    for (const r of toArray(langPoll.results)) {
+      for (const v of toArray(r.result)) {
+        const nv = parseInt0(v.numvotes);
+        if (nv > maxVotes) {
+          maxVotes = nv;
+          languageDependence = v.value || null;
+        }
+      }
+    }
+  }
 
   const ranks = extractRanks(ratings);
 
@@ -152,9 +240,32 @@ function extractItemData(item) {
     localizedNames: localizedNames.length > 0 ? localizedNames : null,
     description,
     genres: genres.length > 0 ? genres : null,
+    mechanics: mechanics.length > 0 ? mechanics : null,
+    designers: designers.length > 0 ? designers : null,
+    artists: artists.length > 0 ? artists : null,
+    publishers: publishers.length > 0 ? publishers : null,
+    families: families.length > 0 ? families : null,
     bayesAverage,
     average,
     usersRated,
+    numComments,
+    averageWeight,
+    numWeights,
+    stddev,
+    median,
+    owned,
+    wanting,
+    wishing,
+    trading,
+    minPlayers,
+    maxPlayers,
+    playingTime,
+    minPlaytime,
+    maxPlaytime,
+    minAge,
+    suggestedNumplayers,
+    suggestedPlayerage,
+    languageDependence,
     ...ranks,
   };
 }
@@ -265,7 +376,7 @@ async function main() {
       }
 
       if (dryRun) {
-        console.log(`  [DRY-RUN] Would update ${bggId}: cover=${data.cover ? "yes" : "no"}, localized=${data.localizedNames ? data.localizedNames.length + " names" : "none"}, genres=${data.genres ? data.genres.length : 0}`);
+        console.log(`  [DRY-RUN] Would update ${bggId}: cover=${data.cover ? "yes" : "no"}, localized=${data.localizedNames ? data.localizedNames.length + " names" : "none"}, genres=${data.genres ? data.genres.length : 0}, mechanics=${data.mechanics ? data.mechanics.length : 0}, weight=${data.averageWeight}`);
         enriched++;
         continue;
       }
@@ -291,9 +402,32 @@ async function main() {
             strategygames_rank = $15,
             thematic_rank = $16,
             wargames_rank = $17,
-            api_enriched_at = $18,
-            updated_at = $19
-          WHERE bgg_id = $20`,
+            mechanics = $18,
+            designers = $19,
+            artists = $20,
+            publishers = $21,
+            families = $22,
+            num_comments = $23,
+            average_weight = $24,
+            num_weights = $25,
+            stddev = $26,
+            median = $27,
+            owned = $28,
+            wanting = $29,
+            wishing = $30,
+            trading = $31,
+            min_players = $32,
+            max_players = $33,
+            playing_time = $34,
+            min_playtime = $35,
+            max_playtime = $36,
+            min_age = $37,
+            suggested_numplayers = $38,
+            suggested_playerage = $39,
+            language_dependence = $40,
+            api_enriched_at = $41,
+            updated_at = $42
+          WHERE bgg_id = $43`,
           [
             data.cover,
             data.thumbnail,
@@ -312,6 +446,29 @@ async function main() {
             data.strategygames_rank ?? null,
             data.thematic_rank ?? null,
             data.wargames_rank ?? null,
+            data.mechanics ? JSON.stringify(data.mechanics) : null,
+            data.designers ? JSON.stringify(data.designers) : null,
+            data.artists ? JSON.stringify(data.artists) : null,
+            data.publishers ? JSON.stringify(data.publishers) : null,
+            data.families ? JSON.stringify(data.families) : null,
+            data.numComments,
+            data.averageWeight,
+            data.numWeights,
+            data.stddev,
+            data.median,
+            data.owned,
+            data.wanting,
+            data.wishing,
+            data.trading,
+            data.minPlayers,
+            data.maxPlayers,
+            data.playingTime,
+            data.minPlaytime,
+            data.maxPlaytime,
+            data.minAge,
+            data.suggestedNumplayers ? JSON.stringify(data.suggestedNumplayers) : null,
+            data.suggestedPlayerage,
+            data.languageDependence,
             now,
             now,
             bggId,

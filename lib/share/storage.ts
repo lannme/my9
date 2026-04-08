@@ -495,6 +495,23 @@ async function ensureSchema(): Promise<boolean> {
       await sql`ALTER TABLE ${sql.unsafe(BGG_BOARDGAME_TABLE)} ADD COLUMN IF NOT EXISTS artists JSONB`;
       await sql`ALTER TABLE ${sql.unsafe(BGG_BOARDGAME_TABLE)} ADD COLUMN IF NOT EXISTS publishers JSONB`;
       await sql`ALTER TABLE ${sql.unsafe(BGG_BOARDGAME_TABLE)} ADD COLUMN IF NOT EXISTS num_comments INT`;
+      await sql`ALTER TABLE ${sql.unsafe(BGG_BOARDGAME_TABLE)} ADD COLUMN IF NOT EXISTS average_weight REAL`;
+      await sql`ALTER TABLE ${sql.unsafe(BGG_BOARDGAME_TABLE)} ADD COLUMN IF NOT EXISTS min_players INT`;
+      await sql`ALTER TABLE ${sql.unsafe(BGG_BOARDGAME_TABLE)} ADD COLUMN IF NOT EXISTS max_players INT`;
+      await sql`ALTER TABLE ${sql.unsafe(BGG_BOARDGAME_TABLE)} ADD COLUMN IF NOT EXISTS playing_time INT`;
+      await sql`ALTER TABLE ${sql.unsafe(BGG_BOARDGAME_TABLE)} ADD COLUMN IF NOT EXISTS min_playtime INT`;
+      await sql`ALTER TABLE ${sql.unsafe(BGG_BOARDGAME_TABLE)} ADD COLUMN IF NOT EXISTS max_playtime INT`;
+      await sql`ALTER TABLE ${sql.unsafe(BGG_BOARDGAME_TABLE)} ADD COLUMN IF NOT EXISTS min_age INT`;
+      await sql`ALTER TABLE ${sql.unsafe(BGG_BOARDGAME_TABLE)} ADD COLUMN IF NOT EXISTS owned INT`;
+      await sql`ALTER TABLE ${sql.unsafe(BGG_BOARDGAME_TABLE)} ADD COLUMN IF NOT EXISTS wanting INT`;
+      await sql`ALTER TABLE ${sql.unsafe(BGG_BOARDGAME_TABLE)} ADD COLUMN IF NOT EXISTS wishing INT`;
+      await sql`ALTER TABLE ${sql.unsafe(BGG_BOARDGAME_TABLE)} ADD COLUMN IF NOT EXISTS trading INT`;
+      await sql`ALTER TABLE ${sql.unsafe(BGG_BOARDGAME_TABLE)} ADD COLUMN IF NOT EXISTS stddev REAL`;
+      await sql`ALTER TABLE ${sql.unsafe(BGG_BOARDGAME_TABLE)} ADD COLUMN IF NOT EXISTS median REAL`;
+      await sql`ALTER TABLE ${sql.unsafe(BGG_BOARDGAME_TABLE)} ADD COLUMN IF NOT EXISTS num_weights INT`;
+      await sql`ALTER TABLE ${sql.unsafe(BGG_BOARDGAME_TABLE)} ADD COLUMN IF NOT EXISTS suggested_numplayers JSONB`;
+      await sql`ALTER TABLE ${sql.unsafe(BGG_BOARDGAME_TABLE)} ADD COLUMN IF NOT EXISTS suggested_playerage TEXT`;
+      await sql`ALTER TABLE ${sql.unsafe(BGG_BOARDGAME_TABLE)} ADD COLUMN IF NOT EXISTS language_dependence TEXT`;
       await sql`ALTER TABLE ${sql.unsafe(BGG_BOARDGAME_TABLE)} DROP COLUMN IF EXISTS localized_name`;
       await sql`DROP INDEX IF EXISTS bgg_boardgame_locname_trgm_idx`;
       await sql`

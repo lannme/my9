@@ -59,7 +59,7 @@ function extractGenres(linkField: BggLink | BggLink[] | undefined): string[] {
     .filter((l) => l.type === "boardgamecategory")
     .map((l) => l.value ?? "")
     .filter(Boolean)
-    .slice(0, 3);
+    .slice(0, 5);
 }
 
 function parseFloat0(raw?: string): number {

@@ -1,6 +1,7 @@
 import { _getSqlClient, _ensureSchema, BGG_BOARDGAME_TABLE } from "@/lib/share/storage";
 import type { ShareSubject } from "@/lib/share/types";
 import type { BggThingItem } from "@/lib/bgg/bgg-api";
+import { bggToArray } from "@/lib/bgg/bgg-api";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const OpenCC = require("opencc-js") as {
   Converter: (opts: { from: string; to: string }) => (text: string) => string;
@@ -168,6 +169,59 @@ export async function searchLocalBoardgames(query: string): Promise<LocalSearchR
   return { items, needsEnrich };
 }
 
+function parseFloat0(raw?: string): number {
+  if (!raw) return 0;
+  const n = Number.parseFloat(raw);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function parseInt0(raw?: string): number {
+  if (!raw) return 0;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function extractLinksOfType(thing: BggThingItem, type: string): string[] {
+  return bggToArray(thing.link)
+    .filter((l) => l.type === type)
+    .map((l) => l.value ?? "")
+    .filter(Boolean);
+}
+
+function extractSuggestedNumplayers(thing: BggThingItem): unknown[] | null {
+  const polls = bggToArray(thing.poll);
+  const npPoll = polls.find((p) => p.name === "suggested_numplayers");
+  if (!npPoll) return null;
+  const entries: unknown[] = [];
+  for (const r of bggToArray(npPoll.results)) {
+    if (!r.numplayers) continue;
+    const votes: Record<string, number> = {};
+    for (const v of bggToArray(r.result)) {
+      if (v.value && v.numvotes) votes[v.value] = parseInt0(v.numvotes);
+    }
+    entries.push({ numplayers: r.numplayers, ...votes });
+  }
+  return entries.length > 0 ? entries : null;
+}
+
+function extractPollWinner(thing: BggThingItem, pollName: string): string | null {
+  const polls = bggToArray(thing.poll);
+  const poll = polls.find((p) => p.name === pollName);
+  if (!poll) return null;
+  let maxVotes = 0;
+  let winner: string | null = null;
+  for (const r of bggToArray(poll.results)) {
+    for (const v of bggToArray(r.result)) {
+      const nv = parseInt0(v.numvotes);
+      if (nv > maxVotes) {
+        maxVotes = nv;
+        winner = v.value || null;
+      }
+    }
+  }
+  return winner;
+}
+
 export async function upsertBggBoardgameFromSearch(
   items: ShareSubject[],
   thingMap: Map<string, BggThingItem>,
@@ -187,6 +241,29 @@ export async function upsertBggBoardgameFromSearch(
     genres: string | null;
     users_rated: number;
     bayes_average: number;
+    mechanics: string | null;
+    designers: string | null;
+    artists: string | null;
+    publishers: string | null;
+    families: string | null;
+    num_comments: number;
+    average_weight: number;
+    min_players: number | null;
+    max_players: number | null;
+    playing_time: number | null;
+    min_playtime: number | null;
+    max_playtime: number | null;
+    min_age: number | null;
+    owned: number;
+    wanting: number;
+    wishing: number;
+    trading: number;
+    stddev: number;
+    median: number;
+    num_weights: number;
+    suggested_numplayers: string | null;
+    suggested_playerage: string | null;
+    language_dependence: string | null;
   }> = [];
 
   for (const item of items) {
@@ -207,6 +284,31 @@ export async function upsertBggBoardgameFromSearch(
       ? Number.parseInt(ratings.usersrated.value, 10)
       : 0;
 
+    const mechanics = thing ? extractLinksOfType(thing, "boardgamemechanic") : [];
+    const designers = thing ? extractLinksOfType(thing, "boardgamedesigner") : [];
+    const artists = thing ? extractLinksOfType(thing, "boardgameartist") : [];
+    const publishers = thing ? extractLinksOfType(thing, "boardgamepublisher") : [];
+    const families = thing ? extractLinksOfType(thing, "boardgamefamily") : [];
+
+    const numComments = parseInt0(ratings?.numcomments?.value);
+    const averageWeight = parseFloat0(ratings?.averageweight?.value);
+    const minPlayers = parseInt0(thing?.minplayers?.value) || null;
+    const maxPlayers = parseInt0(thing?.maxplayers?.value) || null;
+    const playingTime = parseInt0(thing?.playingtime?.value) || null;
+    const minPlaytime = parseInt0(thing?.minplaytime?.value) || null;
+    const maxPlaytime = parseInt0(thing?.maxplaytime?.value) || null;
+    const minAge = parseInt0(thing?.minage?.value) || null;
+    const owned = parseInt0(ratings?.owned?.value);
+    const wanting = parseInt0(ratings?.wanting?.value);
+    const wishing = parseInt0(ratings?.wishing?.value);
+    const trading = parseInt0(ratings?.trading?.value);
+    const stddev = parseFloat0(ratings?.stddev?.value);
+    const median = parseFloat0(ratings?.median?.value);
+    const numWeights = parseInt0(ratings?.numweights?.value);
+    const suggestedNumplayers = thing ? extractSuggestedNumplayers(thing) : null;
+    const suggestedPlayerage = thing ? extractPollWinner(thing, "suggested_playerage") : null;
+    const languageDependence = thing ? extractPollWinner(thing, "language_dependence") : null;
+
     upsertRows.push({
       bgg_id: bggId,
       name: item.name,
@@ -217,6 +319,29 @@ export async function upsertBggBoardgameFromSearch(
       genres: item.genres && item.genres.length > 0 ? JSON.stringify(item.genres) : null,
       users_rated: Number.isFinite(usersRated) ? usersRated : 0,
       bayes_average: Number.isFinite(bayesAverage) ? bayesAverage : 0,
+      mechanics: mechanics.length > 0 ? JSON.stringify(mechanics) : null,
+      designers: designers.length > 0 ? JSON.stringify(designers) : null,
+      artists: artists.length > 0 ? JSON.stringify(artists) : null,
+      publishers: publishers.length > 0 ? JSON.stringify(publishers) : null,
+      families: families.length > 0 ? JSON.stringify(families) : null,
+      num_comments: numComments,
+      average_weight: averageWeight,
+      min_players: minPlayers,
+      max_players: maxPlayers,
+      playing_time: playingTime,
+      min_playtime: minPlaytime,
+      max_playtime: maxPlaytime,
+      min_age: minAge,
+      owned,
+      wanting,
+      wishing,
+      trading,
+      stddev,
+      median,
+      num_weights: numWeights,
+      suggested_numplayers: suggestedNumplayers ? JSON.stringify(suggestedNumplayers) : null,
+      suggested_playerage: suggestedPlayerage,
+      language_dependence: languageDependence,
     });
   }
 
@@ -229,11 +354,20 @@ export async function upsertBggBoardgameFromSearch(
       `
       INSERT INTO ${BGG_BOARDGAME_TABLE} (
         bgg_id, name, localized_names, year_published, cover, thumbnail, genres,
-        users_rated, bayes_average, updated_at, api_enriched_at
+        users_rated, bayes_average, mechanics, designers, artists, publishers, families,
+        num_comments, average_weight, min_players, max_players, playing_time,
+        min_playtime, max_playtime, min_age, owned, wanting, wishing, trading,
+        stddev, median, num_weights, suggested_numplayers, suggested_playerage,
+        language_dependence, updated_at, api_enriched_at
       )
       SELECT
         r.bgg_id, r.name, r.localized_names::jsonb, r.year_published, r.cover, r.thumbnail,
-        r.genres::jsonb, r.users_rated, r.bayes_average, $2::bigint, $2::bigint
+        r.genres::jsonb, r.users_rated, r.bayes_average,
+        r.mechanics::jsonb, r.designers::jsonb, r.artists::jsonb, r.publishers::jsonb, r.families::jsonb,
+        r.num_comments, r.average_weight, r.min_players, r.max_players, r.playing_time,
+        r.min_playtime, r.max_playtime, r.min_age, r.owned, r.wanting, r.wishing, r.trading,
+        r.stddev, r.median, r.num_weights, r.suggested_numplayers::jsonb, r.suggested_playerage,
+        r.language_dependence, $2::bigint, $2::bigint
       FROM jsonb_to_recordset($1::jsonb) AS r(
         bgg_id text,
         name text,
@@ -243,7 +377,30 @@ export async function upsertBggBoardgameFromSearch(
         thumbnail text,
         genres text,
         users_rated int,
-        bayes_average real
+        bayes_average real,
+        mechanics text,
+        designers text,
+        artists text,
+        publishers text,
+        families text,
+        num_comments int,
+        average_weight real,
+        min_players int,
+        max_players int,
+        playing_time int,
+        min_playtime int,
+        max_playtime int,
+        min_age int,
+        owned int,
+        wanting int,
+        wishing int,
+        trading int,
+        stddev real,
+        median real,
+        num_weights int,
+        suggested_numplayers text,
+        suggested_playerage text,
+        language_dependence text
       )
       ON CONFLICT (bgg_id) DO UPDATE SET
         name = EXCLUDED.name,
@@ -253,6 +410,29 @@ export async function upsertBggBoardgameFromSearch(
         genres = EXCLUDED.genres,
         users_rated = EXCLUDED.users_rated,
         bayes_average = EXCLUDED.bayes_average,
+        mechanics = COALESCE(EXCLUDED.mechanics, ${BGG_BOARDGAME_TABLE}.mechanics),
+        designers = COALESCE(EXCLUDED.designers, ${BGG_BOARDGAME_TABLE}.designers),
+        artists = COALESCE(EXCLUDED.artists, ${BGG_BOARDGAME_TABLE}.artists),
+        publishers = COALESCE(EXCLUDED.publishers, ${BGG_BOARDGAME_TABLE}.publishers),
+        families = COALESCE(EXCLUDED.families, ${BGG_BOARDGAME_TABLE}.families),
+        num_comments = EXCLUDED.num_comments,
+        average_weight = EXCLUDED.average_weight,
+        min_players = EXCLUDED.min_players,
+        max_players = EXCLUDED.max_players,
+        playing_time = EXCLUDED.playing_time,
+        min_playtime = EXCLUDED.min_playtime,
+        max_playtime = EXCLUDED.max_playtime,
+        min_age = EXCLUDED.min_age,
+        owned = EXCLUDED.owned,
+        wanting = EXCLUDED.wanting,
+        wishing = EXCLUDED.wishing,
+        trading = EXCLUDED.trading,
+        stddev = EXCLUDED.stddev,
+        median = EXCLUDED.median,
+        num_weights = EXCLUDED.num_weights,
+        suggested_numplayers = COALESCE(EXCLUDED.suggested_numplayers, ${BGG_BOARDGAME_TABLE}.suggested_numplayers),
+        suggested_playerage = COALESCE(EXCLUDED.suggested_playerage, ${BGG_BOARDGAME_TABLE}.suggested_playerage),
+        language_dependence = COALESCE(EXCLUDED.language_dependence, ${BGG_BOARDGAME_TABLE}.language_dependence),
         updated_at = EXCLUDED.updated_at,
         api_enriched_at = EXCLUDED.api_enriched_at
       `,
