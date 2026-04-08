@@ -16,6 +16,7 @@ export interface ShareSubject {
   spoiler?: boolean;
   subjectType?: number;
   subjectPlatform?: string | null;
+  rating?: number;
 }
 
 export type ShareGame = ShareSubject;

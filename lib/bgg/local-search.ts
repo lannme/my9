@@ -85,6 +85,7 @@ function pickLocalizedName(row: BggBoardgameRow, query?: string): string | undef
 }
 
 function rowToSubject(row: BggBoardgameRow, query?: string): ShareSubject {
+  const bayesAverage = row.bayes_average;
   return {
     id: row.bgg_id,
     name: row.name,
@@ -95,6 +96,7 @@ function rowToSubject(row: BggBoardgameRow, query?: string): ShareSubject {
     storeUrls: {
       bgg: `https://boardgamegeek.com/boardgame/${row.bgg_id}`,
     },
+    rating: bayesAverage > 0 ? Math.round(bayesAverage * 10) / 10 : undefined,
   };
 }
 

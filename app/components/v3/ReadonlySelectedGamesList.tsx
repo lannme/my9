@@ -60,12 +60,12 @@ export function ReadonlySelectedGamesList({
                       src={game.cover}
                       alt={game.name}
                       width={64}
-                      height={86}
+                      height={64}
                       unoptimized
-                      className="h-auto w-full object-contain"
+                      className="aspect-square w-full object-cover"
                     />
                   ) : (
-                    <div className="flex aspect-[3/4] items-center justify-center text-[11px] text-muted-foreground">
+                    <div className="flex aspect-square items-center justify-center text-[11px] text-muted-foreground">
                       无图
                     </div>
                   )}

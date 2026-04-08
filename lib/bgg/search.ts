@@ -181,6 +181,9 @@ export async function searchBggBoardgames(params: {
     );
     const genres = thing ? extractGenres(thing.link) : [];
 
+    const ratings = thing?.statistics?.ratings;
+    const bayesAverage = parseFloat0(ratings?.bayesaverage?.value);
+
     results.push({
       id,
       name: primary,
@@ -191,6 +194,7 @@ export async function searchBggBoardgames(params: {
       storeUrls: {
         bgg: `https://boardgamegeek.com/boardgame/${id}`,
       },
+      rating: bayesAverage > 0 ? Math.round(bayesAverage * 10) / 10 : undefined,
     });
   }
 
@@ -208,12 +212,17 @@ export function buildBggSearchResponse(params: {
   const scored: ScoredSubject[] = items.map((subject) => {
     const thing = thingMap?.get(String(subject.id));
     const ratings = thing?.statistics?.ratings;
+    const bayesAverage = parseFloat0(ratings?.bayesaverage?.value);
     const stats = {
       numComments: parseInt0(ratings?.numcomments?.value),
-      bayesAverage: parseFloat0(ratings?.bayesaverage?.value),
+      bayesAverage,
       usersRated: parseInt0(ratings?.usersrated?.value),
     };
-    return { subject, score: scoreCandidate(query, subject, stats) };
+    const enriched: ShareSubject = {
+      ...subject,
+      rating: bayesAverage > 0 ? Math.round(bayesAverage * 10) / 10 : subject.rating,
+    };
+    return { subject: enriched, score: scoreCandidate(query, subject, stats) };
   });
 
   scored.sort((a, b) => b.score - a.score);

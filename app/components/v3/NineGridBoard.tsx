@@ -64,6 +64,8 @@ function GridCell({
   onRemoveSlot,
   onOpenComment,
 }: GridCellProps) {
+  const hasComment = game?.comment && game.comment.trim().length > 0;
+
   return (
     <>
       <div
@@ -82,34 +84,43 @@ function GridCell({
           }
         }}
         className={cn(
-          "relative flex aspect-[3/4] w-full items-center justify-center overflow-hidden rounded-lg border border-border bg-muted transition-colors",
-          !readOnly && "cursor-pointer hover:border-sky-200",
-          isDragSource && "opacity-40 ring-2 ring-sky-400 rounded-lg"
+          "group relative flex w-full flex-col overflow-hidden rounded-xl bg-[#1c1c2e] shadow-[0_2px_8px_rgba(0,0,0,0.25),0_8px_24px_rgba(0,0,0,0.15)] transition-all sm:rounded-2xl",
+          !readOnly && "cursor-pointer hover:shadow-[0_4px_16px_rgba(0,0,0,0.35),0_12px_32px_rgba(0,0,0,0.2)] hover:scale-[1.02]",
+          isDragSource && "opacity-40 ring-2 ring-sky-400"
         )}
       >
-        {game?.cover ? (
-          <Image
-            src={game.cover}
-            alt={displayTitle(game)}
-            fill
-            unoptimized
-            className="absolute inset-0 object-cover select-none [-webkit-touch-callout:none]"
-            sizes="(max-width: 640px) 30vw, (max-width: 1024px) 22vw, 180px"
-          />
-        ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-xs font-medium text-muted-foreground">
-            <Plus className="h-4 w-4" />
-            <span>选择</span>
-          </div>
-        )}
+        <div className="relative aspect-[4/5] w-full overflow-hidden">
+          {game?.cover ? (
+            <Image
+              src={game.cover}
+              alt={displayTitle(game)}
+              fill
+              unoptimized
+              className="absolute inset-0 object-cover select-none [-webkit-touch-callout:none]"
+              sizes="(max-width: 640px) 30vw, (max-width: 1024px) 22vw, 180px"
+            />
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-muted text-xs font-medium text-muted-foreground">
+              <Plus className="h-4 w-4" />
+              <span>选择</span>
+            </div>
+          )}
+        </div>
 
-        <div className="absolute left-1.5 top-1 text-[10px] font-semibold text-muted-foreground/70">
-          {index + 1}
+        <div className="flex min-h-[1.75rem] flex-col justify-center px-1.5 py-1 sm:min-h-[2.25rem] sm:px-2.5 sm:py-1.5">
+          <p className="truncate text-[10px] font-semibold leading-tight text-white/90 sm:text-xs">
+            {game ? displayTitle(game) : `${subjectLabel} ${index + 1}`}
+          </p>
+          {hasComment && (
+            <p className="mt-0.5 truncate text-[9px] leading-tight text-white/50 sm:text-[10px]">
+              {game!.comment}
+            </p>
+          )}
         </div>
       </div>
 
       {game && !readOnly ? (
-        <div className="absolute bottom-2 right-2 flex items-center gap-1.5">
+        <div className="absolute bottom-[1.75rem] right-1 flex items-center gap-1 sm:bottom-[2.25rem] sm:right-1.5 sm:gap-1.5">
           <button
             type="button"
             aria-label={`编辑第 ${index + 1} 格评论`}
@@ -117,9 +128,9 @@ function GridCell({
               event.stopPropagation();
               onOpenComment?.(index);
             }}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-black/70 text-white transition hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white/80 backdrop-blur-sm transition hover:bg-sky-600 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 sm:h-8 sm:w-8"
           >
-            <MessageSquare className="h-4 w-4" />
+            <MessageSquare className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
           </button>
           <button
             type="button"
@@ -128,9 +139,9 @@ function GridCell({
               event.stopPropagation();
               onRemoveSlot?.(index);
             }}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-black/70 text-white transition hover:bg-rose-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white/80 backdrop-blur-sm transition hover:bg-rose-600 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 sm:h-8 sm:w-8"
           >
-            <X className="h-4 w-4" />
+            <X className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
           </button>
         </div>
       ) : null}
@@ -149,7 +160,7 @@ export function NineGridBoard({
   onReorder,
 }: NineGridBoardProps) {
   const grid = (
-    <div className="w-full grid grid-cols-3 gap-2 sm:gap-3">
+    <div className="w-full grid grid-cols-3 gap-2.5 sm:gap-3.5">
       {games.map((game, index) => {
         const id = game ? `subject-${game.id}` : `empty-${index}`;
 
