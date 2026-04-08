@@ -3,7 +3,6 @@ import { DEFAULT_SUBJECT_KIND, SubjectKind, parseSubjectKind } from "@/lib/subje
 import { normalizeSearchQuery } from "@/lib/search/query";
 import { buildBggSearchResponse, searchBggBoardgames, type BggSearchResult } from "@/lib/bgg/search";
 import { searchLocalBoardgames, upsertBggBoardgameFromSearch } from "@/lib/bgg/local-search";
-import { fetchThingItems, bggToArray, type BggThingItem } from "@/lib/bgg/bgg-api";
 import type { ShareSubject } from "@/lib/share/types";
 
 const SEARCH_CDN_TTL_SECONDS = 900;
@@ -242,51 +241,8 @@ async function getCachedSearchResult(query: string, kind: SubjectKind): Promise<
   }
 }
 
-async function enrichLocalCovers(
-  items: ShareSubject[],
-  needsEnrichIds: string[],
-): Promise<{ items: ShareSubject[]; thingMap: Map<string, BggThingItem> }> {
-  if (needsEnrichIds.length === 0) return { items, thingMap: new Map() };
-
-  const idsToFetch = needsEnrichIds.slice(0, 20);
-  const thingMap = new Map<string, BggThingItem>();
-
-  try {
-    const response = await fetchThingItems({
-      id: idsToFetch.join(","),
-      type: "boardgame",
-      stats: 1,
-    });
-    for (const thing of bggToArray(response.items?.item)) {
-      if (thing.id) thingMap.set(String(thing.id), thing);
-    }
-    recordBggSuccess();
-  } catch {
-    recordBggFailure();
-    return { items, thingMap: new Map() };
-  }
-
-  const enriched = items.map((item) => {
-    const id = String(item.id);
-    if (item.cover) return item;
-    const thing = thingMap.get(id);
-    if (!thing) return item;
-    const cover = thing.image || thing.thumbnail || null;
-    if (!cover) return item;
-    return { ...item, cover };
-  });
-
-  const upsertItems = enriched.filter((item) => thingMap.has(String(item.id)));
-  if (upsertItems.length > 0) {
-    upsertBggBoardgameFromSearch(upsertItems, thingMap).catch(() => { });
-  }
-
-  return { items: enriched, thingMap };
-}
-
 async function executeSearch(query: string): Promise<BggSearchResult> {
   let localItems: ShareSubject[] = [];
-  let needsEnrichIds: string[] = [];
   let localOk = false;
   const isCjk = /[\u4e00-\u9fff\u3400-\u4dbf]/.test(query);
   const t0 = Date.now();
@@ -294,7 +250,6 @@ async function executeSearch(query: string): Promise<BggSearchResult> {
   try {
     const localResult = await searchLocalBoardgames(query);
     localItems = localResult.items;
-    needsEnrichIds = localResult.needsEnrich;
     localOk = true;
 
     const localSufficient = isCjk
@@ -302,16 +257,12 @@ async function executeSearch(query: string): Promise<BggSearchResult> {
       : localItems.length >= LOCAL_SEARCH_SUFFICIENT_COUNT;
 
     if (localSufficient) {
-      if (needsEnrichIds.length > 0 && !isBggCircuitOpen()) {
-        enrichLocalCovers(localItems, needsEnrichIds).catch(() => { });
-      }
       console.log(
         JSON.stringify({
           event: "bgg_search",
           query,
           source: "local",
           resultCount: localItems.length,
-          asyncEnrich: needsEnrichIds.length,
           ms: Date.now() - t0,
         }),
       );

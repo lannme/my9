@@ -499,6 +499,32 @@ export default function My9V3App({
         noResultQuery: nextResponse.noResultQuery,
       });
       setSearchActiveIndex(nextResponse.items.length > 0 ? 0 : -1);
+
+      const noCoverIds = nextResponse.items.filter((item) => !item.cover).map((item) => String(item.id));
+      if (noCoverIds.length > 0) {
+        fetch(`/api/subjects/covers?ids=${noCoverIds.join(",")}`)
+          .then((r) => r.json())
+          .then((data: { ok: boolean; covers: Record<string, string> }) => {
+            if (!data.ok || !data.covers) return;
+            const coversMap = data.covers;
+            setSearchResults((prev) => {
+              const updated = prev.map((item) => {
+                const newCover = coversMap[String(item.id)];
+                return newCover && !item.cover ? { ...item, cover: newCover } : item;
+              });
+              const cachedEntry = searchClientCacheRef.current.get(cacheKey);
+              if (cachedEntry) {
+                searchClientCacheRef.current.set(cacheKey, {
+                  ...cachedEntry,
+                  response: { ...cachedEntry.response, items: updated },
+                });
+                persistSearchClientCache();
+              }
+              return updated;
+            });
+          })
+          .catch(() => { });
+      }
     } catch {
       setSearchError("搜索失败，请稍后再试");
       setSearchResults([]);

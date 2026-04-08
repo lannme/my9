@@ -260,3 +260,35 @@ export async function upsertBggBoardgameFromSearch(
     return;
   }
 }
+
+export async function getBggBoardgamesByIds(
+  ids: string[],
+): Promise<Array<{ bgg_id: string; cover: string | null }>> {
+  const sql = _getSqlClient();
+  if (!sql || ids.length === 0) return [];
+  try {
+    return await sql`SELECT bgg_id, cover FROM my9_bgg_boardgame_v1 WHERE bgg_id = ANY(${ids})` as Array<{ bgg_id: string; cover: string | null }>;
+  } catch {
+    return [];
+  }
+}
+
+export async function upsertBggBoardgameCovers(
+  data: Array<{ bgg_id: string; cover: string; thumbnail: string | null }>,
+): Promise<void> {
+  const sql = _getSqlClient();
+  if (!sql || data.length === 0) return;
+  try {
+    await sql.query(
+      `UPDATE ${BGG_BOARDGAME_TABLE} SET
+        cover = r.cover,
+        thumbnail = COALESCE(r.thumbnail, ${BGG_BOARDGAME_TABLE}.thumbnail),
+        updated_at = $2
+      FROM jsonb_to_recordset($1::jsonb) AS r(bgg_id text, cover text, thumbnail text)
+      WHERE ${BGG_BOARDGAME_TABLE}.bgg_id = r.bgg_id`,
+      [JSON.stringify(data), Date.now()],
+    );
+  } catch {
+    return;
+  }
+}
