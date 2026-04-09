@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SharePlatformActions } from "@/components/share/SharePlatformActions";
+import { PersonalityButton } from "@/components/personality/PersonalityButton";
 import { ReadonlyNineGridBoard } from "@/app/components/v3/ReadonlyNineGridBoard";
 import { ReadonlySelectedGamesList } from "@/app/components/v3/ReadonlySelectedGamesList";
 import { SubjectKind, getSubjectKindMeta, getSubjectKindShareTitle } from "@/lib/subject-kind";
@@ -62,6 +63,12 @@ export default function My9ReadonlyPage({ kind, shareId, initialShareData }: My9
         </div>
 
         <div className="flex w-full flex-col items-center gap-3">
+          <PersonalityButton
+            shareId={finalShareId}
+            kind={kind}
+            games={games}
+            creatorName={creatorName}
+          />
           <SharePlatformActions
             kind={kind}
             shareId={finalShareId}

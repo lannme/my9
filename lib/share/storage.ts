@@ -39,6 +39,7 @@ const TREND_COUNT_HOUR_TABLE = "my9_trend_subject_kind_hour_v3";
 const TRENDS_CACHE_TABLE = "my9_trends_cache_v1";
 const SHARE_VIEW_DAILY_TABLE = "my9_share_view_daily_v1";
 const BGG_BOARDGAME_TABLE = "my9_bgg_boardgame_v1";
+const PERSONALITY_TABLE = "my9_personality_v1";
 const TRENDS_CACHE_VERSION = "v9";
 const TRENDS_SAMPLE_CACHE_VERSION = "v5";
 const SAMPLE_SUMMARY_CACHE_VIEW = "sample";
@@ -513,6 +514,20 @@ async function ensureSchema(): Promise<boolean> {
       await sql`ALTER TABLE ${sql.unsafe(BGG_BOARDGAME_TABLE)} ADD COLUMN IF NOT EXISTS suggested_playerage TEXT`;
       await sql`ALTER TABLE ${sql.unsafe(BGG_BOARDGAME_TABLE)} ADD COLUMN IF NOT EXISTS language_dependence TEXT`;
       await sql`ALTER TABLE ${sql.unsafe(BGG_BOARDGAME_TABLE)} DROP COLUMN IF EXISTS localized_name`;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS ${sql.unsafe(PERSONALITY_TABLE)} (
+          content_hash TEXT PRIMARY KEY,
+          prompt_version TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          personality JSONB NOT NULL,
+          model TEXT NOT NULL,
+          input_tokens INT,
+          output_tokens INT,
+          latency_ms INT,
+          created_at BIGINT NOT NULL
+        )
+      `;
       await sql`DROP INDEX IF EXISTS bgg_boardgame_locname_trgm_idx`;
       await sql`
         CREATE INDEX IF NOT EXISTS bgg_boardgame_name_trgm_idx
@@ -628,8 +643,8 @@ function getBeijingHourStart(timestampMs: number): number {
 function toSubjectSnapshot(row: SubjectDimRow): SubjectSnapshot {
   const genres = Array.isArray(row.genres)
     ? row.genres
-        .map((item) => (typeof item === "string" ? item.trim() : ""))
-        .filter((item) => Boolean(item))
+      .map((item) => (typeof item === "string" ? item.trim() : ""))
+      .filter((item) => Boolean(item))
     : undefined;
 
   return {
@@ -1280,21 +1295,21 @@ export async function listSharesByPeriod(period: TrendPeriod): Promise<StoredSha
       const rows =
         from > 0
           ? ((await sql.query(
-              `
+            `
             SELECT share_id, kind, creator_name, storage_tier, hot_payload, cold_object_key, created_at, updated_at, last_viewed_at
             FROM ${SHARES_V2_TABLE}
             WHERE created_at >= $1
             ORDER BY created_at DESC
             `,
-              [from]
-            )) as ShareRegistryRow[])
+            [from]
+          )) as ShareRegistryRow[])
           : ((await sql.query(
-              `
+            `
             SELECT share_id, kind, creator_name, storage_tier, hot_payload, cold_object_key, created_at, updated_at, last_viewed_at
             FROM ${SHARES_V2_TABLE}
             ORDER BY created_at DESC
             `
-            )) as ShareRegistryRow[]);
+          )) as ShareRegistryRow[]);
 
       if (rows.length > 0) {
         const result: StoredShareV1[] = [];

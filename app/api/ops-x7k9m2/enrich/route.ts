@@ -71,6 +71,40 @@ function extractLinkValues(links: BggLink[], type: string, max = 20): string[] {
     .slice(0, max);
 }
 
+function extractSuggestedNumplayers(item: BggThingItem): unknown[] | null {
+  const polls = bggToArray(item.poll);
+  const npPoll = polls.find((p) => p.name === "suggested_numplayers");
+  if (!npPoll) return null;
+  const entries: unknown[] = [];
+  for (const r of bggToArray(npPoll.results)) {
+    if (!r.numplayers) continue;
+    const votes: Record<string, number> = {};
+    for (const v of bggToArray(r.result)) {
+      if (v.value && v.numvotes) votes[v.value] = parseInt0(v.numvotes);
+    }
+    entries.push({ numplayers: r.numplayers, ...votes });
+  }
+  return entries.length > 0 ? entries : null;
+}
+
+function extractPollWinner(item: BggThingItem, pollName: string): string | null {
+  const polls = bggToArray(item.poll);
+  const poll = polls.find((p) => p.name === pollName);
+  if (!poll) return null;
+  let maxVotes = 0;
+  let winner: string | null = null;
+  for (const r of bggToArray(poll.results)) {
+    for (const v of bggToArray(r.result)) {
+      const nv = parseInt0(v.numvotes);
+      if (nv > maxVotes) {
+        maxVotes = nv;
+        winner = v.value || null;
+      }
+    }
+  }
+  return winner;
+}
+
 type ItemData = {
   id: string;
   cover: string | null;
@@ -88,7 +122,24 @@ type ItemData = {
   bayesAverage: number;
   average: number;
   usersRated: number;
-  [key: string]: string | number | string[] | null;
+  averageWeight: number;
+  numWeights: number;
+  stddev: number;
+  median: number;
+  owned: number;
+  wanting: number;
+  wishing: number;
+  trading: number;
+  minPlayers: number | null;
+  maxPlayers: number | null;
+  playingTime: number | null;
+  minPlaytime: number | null;
+  maxPlaytime: number | null;
+  minAge: number | null;
+  suggestedNumplayers: unknown[] | null;
+  suggestedPlayerage: string | null;
+  languageDependence: string | null;
+  [key: string]: string | number | string[] | unknown[] | null;
 };
 
 function extractItemData(item: BggThingItem): ItemData | null {
@@ -123,6 +174,25 @@ function extractItemData(item: BggThingItem): ItemData | null {
   const average = parseFloat0(ratings?.average?.value);
   const usersRated = parseInt0(ratings?.usersrated?.value);
   const numComments = parseInt0(ratings?.numcomments?.value);
+  const averageWeight = parseFloat0(ratings?.averageweight?.value);
+  const numWeights = parseInt0(ratings?.numweights?.value);
+  const stddev = parseFloat0(ratings?.stddev?.value);
+  const median = parseFloat0(ratings?.median?.value);
+  const owned = parseInt0(ratings?.owned?.value);
+  const wanting = parseInt0(ratings?.wanting?.value);
+  const wishing = parseInt0(ratings?.wishing?.value);
+  const trading = parseInt0(ratings?.trading?.value);
+
+  const minPlayers = parseInt0(item.minplayers?.value) || null;
+  const maxPlayers = parseInt0(item.maxplayers?.value) || null;
+  const playingTime = parseInt0(item.playingtime?.value) || null;
+  const minPlaytime = parseInt0(item.minplaytime?.value) || null;
+  const maxPlaytime = parseInt0(item.maxplaytime?.value) || null;
+  const minAge = parseInt0(item.minage?.value) || null;
+
+  const suggestedNumplayers = extractSuggestedNumplayers(item);
+  const suggestedPlayerage = extractPollWinner(item, "suggested_playerage");
+  const languageDependence = extractPollWinner(item, "language_dependence");
 
   const ranks = extractRanks(item);
 
@@ -143,6 +213,23 @@ function extractItemData(item: BggThingItem): ItemData | null {
     bayesAverage,
     average,
     usersRated,
+    averageWeight,
+    numWeights,
+    stddev,
+    median,
+    owned,
+    wanting,
+    wishing,
+    trading,
+    minPlayers,
+    maxPlayers,
+    playingTime,
+    minPlaytime,
+    maxPlaytime,
+    minAge,
+    suggestedNumplayers,
+    suggestedPlayerage,
+    languageDependence,
     ...ranks,
   };
 }
@@ -331,9 +418,26 @@ async function runEnrichBackground(opts: {
                 strategygames_rank = $21,
                 thematic_rank = $22,
                 wargames_rank = $23,
-                api_enriched_at = $24,
-                updated_at = $25
-              WHERE bgg_id = $26`,
+                average_weight = $24,
+                num_weights = $25,
+                stddev = $26,
+                median = $27,
+                owned = $28,
+                wanting = $29,
+                wishing = $30,
+                trading = $31,
+                min_players = $32,
+                max_players = $33,
+                playing_time = $34,
+                min_playtime = $35,
+                max_playtime = $36,
+                min_age = $37,
+                suggested_numplayers = $38,
+                suggested_playerage = $39,
+                language_dependence = $40,
+                api_enriched_at = $41,
+                updated_at = $42
+              WHERE bgg_id = $43`,
               [
                 data.cover,
                 data.thumbnail,
@@ -358,6 +462,23 @@ async function runEnrichBackground(opts: {
                 data.strategygames_rank ?? null,
                 data.thematic_rank ?? null,
                 data.wargames_rank ?? null,
+                data.averageWeight,
+                data.numWeights,
+                data.stddev,
+                data.median,
+                data.owned,
+                data.wanting,
+                data.wishing,
+                data.trading,
+                data.minPlayers,
+                data.maxPlayers,
+                data.playingTime,
+                data.minPlaytime,
+                data.maxPlaytime,
+                data.minAge,
+                data.suggestedNumplayers ? JSON.stringify(data.suggestedNumplayers) : null,
+                data.suggestedPlayerage,
+                data.languageDependence,
                 now,
                 now,
                 bggId,

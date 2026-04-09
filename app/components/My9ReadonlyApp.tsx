@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import { SharePlatformActions } from "@/components/share/SharePlatformActions";
+import { PersonalityButton } from "@/components/personality/PersonalityButton";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { InlineToast, ToastKind } from "@/app/components/v3/InlineToast";
 import { NineGridBoard } from "@/app/components/v3/NineGridBoard";
@@ -202,6 +203,12 @@ export default function My9ReadonlyApp({
         )}
 
         <div className="flex w-full flex-col items-center gap-3">
+          <PersonalityButton
+            shareId={shareId}
+            kind={kind}
+            games={games}
+            creatorName={creatorName}
+          />
           <SharePlatformActions
             kind={kind}
             shareId={shareId}

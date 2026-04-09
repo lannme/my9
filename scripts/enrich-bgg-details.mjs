@@ -1,6 +1,11 @@
 #!/usr/bin/env node
 
-try { await import("dotenv/config"); } catch {}
+import { existsSync } from "fs";
+try {
+  const dotenv = await import("dotenv");
+  if (existsSync(".env.local")) dotenv.default.config({ path: ".env.local" });
+  else dotenv.default.config();
+} catch { }
 
 import { neon } from "@neondatabase/serverless";
 import { XMLParser } from "fast-xml-parser";
@@ -303,6 +308,7 @@ async function main() {
   const batchSize = parseIntArg("batch-size", 20);
   const limit = parseIntArg("limit", 500);
   const dryRun = hasBoolArg("dry-run");
+  const reEnrich = hasBoolArg("re-enrich");
 
   const databaseUrl = buildDatabaseUrlFromNeonParts();
   if (!databaseUrl) {
@@ -313,18 +319,50 @@ async function main() {
   const sql = neon(databaseUrl);
 
   console.log(`Enrich BGG details`);
-  console.log(`  batch-size: ${batchSize}`);
-  console.log(`  limit:      ${limit}`);
-  console.log(`  dry-run:    ${dryRun}`);
+  console.log(`  batch-size:  ${batchSize}`);
+  console.log(`  limit:       ${limit}`);
+  console.log(`  dry-run:     ${dryRun}`);
+  console.log(`  re-enrich:   ${reEnrich}`);
   console.log();
 
-  const rows = await sql.query(
-    `SELECT bgg_id FROM ${BGG_TABLE}
-     WHERE cover IS NULL AND api_enriched_at IS NULL
-     ORDER BY bayes_average DESC, users_rated DESC
-     LIMIT $1`,
-    [limit]
-  );
+  let rows;
+  if (reEnrich) {
+    const alterCols = [
+      "mechanics JSONB", "families JSONB", "designers JSONB", "artists JSONB",
+      "publishers JSONB", "num_comments INT", "average_weight REAL",
+      "min_players INT", "max_players INT", "playing_time INT",
+      "min_playtime INT", "max_playtime INT", "min_age INT",
+      "owned INT", "wanting INT", "wishing INT", "trading INT",
+      "stddev REAL", "median REAL", "num_weights INT",
+      "suggested_numplayers JSONB", "suggested_playerage TEXT", "language_dependence TEXT",
+    ];
+    for (const col of alterCols) {
+      await sql.query(`ALTER TABLE ${BGG_TABLE} ADD COLUMN IF NOT EXISTS ${col}`);
+    }
+    console.log("Schema updated: new columns ensured.\n");
+
+    rows = await sql.query(
+      `SELECT bgg_id FROM ${BGG_TABLE}
+       WHERE average_weight IS NULL
+          OR min_players IS NULL
+          OR playing_time IS NULL
+          OR suggested_numplayers IS NULL
+          OR language_dependence IS NULL
+          OR num_weights IS NULL
+          OR owned IS NULL
+       ORDER BY bayes_average DESC, users_rated DESC
+       LIMIT $1`,
+      [limit]
+    );
+  } else {
+    rows = await sql.query(
+      `SELECT bgg_id FROM ${BGG_TABLE}
+       WHERE cover IS NULL AND api_enriched_at IS NULL
+       ORDER BY bayes_average DESC, users_rated DESC
+       LIMIT $1`,
+      [limit]
+    );
+  }
 
   if (rows.length === 0) {
     console.log("No rows to enrich.");
