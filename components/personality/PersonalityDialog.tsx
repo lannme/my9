@@ -20,6 +20,8 @@ interface PersonalityDialogProps {
   shareId: string;
   kind: SubjectKind;
   creatorName: string;
+  initialResult?: PersonalityResult | null;
+  onResult?: (result: PersonalityResult) => void;
 }
 
 const LOADING_TIPS = [
@@ -35,12 +37,15 @@ export function PersonalityDialog({
   shareId,
   kind,
   creatorName,
+  initialResult,
+  onResult,
 }: PersonalityDialogProps) {
-  const [loading, setLoading] = useState(true);
+  const hasInitial = !!initialResult;
+  const [loading, setLoading] = useState(!hasInitial);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<PersonalityResult | null>(null);
+  const [result, setResult] = useState<PersonalityResult | null>(initialResult ?? null);
   const [tipIndex, setTipIndex] = useState(0);
-  const fetchedRef = useRef(false);
+  const fetchedRef = useRef(hasInitial);
 
   useEffect(() => {
     if (!loading) return;
@@ -65,6 +70,7 @@ export function PersonalityDialog({
         return;
       }
       setResult(json.personality as PersonalityResult);
+      onResult?.(json.personality as PersonalityResult);
     } catch {
       setError("网络错误，请稍后重试");
     } finally {

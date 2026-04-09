@@ -1049,7 +1049,7 @@ export async function getShare(shareId: string): Promise<StoredShareV1 | null> {
     try {
       const rows = (await sql.query(
         `
-        SELECT share_id, kind, creator_name, storage_tier, hot_payload, cold_object_key, created_at, updated_at, last_viewed_at
+        SELECT share_id, kind, creator_name, storage_tier, hot_payload, cold_object_key, created_at, updated_at, last_viewed_at, personality
         FROM ${SHARES_V2_TABLE}
         WHERE share_id = $1
         LIMIT 1

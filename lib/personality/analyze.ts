@@ -59,6 +59,13 @@ async function getCachedPersonality(
   }
 }
 
+export async function getCachedPersonalityResult(
+  contentHash: string,
+): Promise<PersonalityResult | null> {
+  const cached = await getCachedPersonality(contentHash);
+  return cached?.personality ?? null;
+}
+
 async function saveCachedPersonality(row: PersonalityCacheRow): Promise<void> {
   const sql = getSqlClient();
   if (!sql) return;

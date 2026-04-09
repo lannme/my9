@@ -57,7 +57,7 @@ export function SiteFooter({ className }: SiteFooterProps) {
       {/* <p className="mt-2">
         开发者：lannme
       </p> */}
-      <div className="flex gap-4 justify-center items-center mt-2">
+      {/* <div className="flex gap-4 justify-center items-center mt-2">
         <a href="https://github.com/SomiaWhiteRing" target="_blank" rel="noreferrer" aria-label="GitHub" className="transition-colors text-muted-foreground hover:text-foreground">
           <FaGithub className="w-5 h-5" />
         </a>
@@ -81,14 +81,13 @@ export function SiteFooter({ className }: SiteFooterProps) {
           aria-label="hitsh"
           className="shrink-0"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={`https://hits.sh/${hitsHost}.svg?style=flat-square&label=visitors`}
             alt="hitsh badge"
           />
         </a>
-        {/* <SupportButton /> */}
-      </div>
+        <SupportButton />
+      </div> */}
     </footer>
   );
 }
